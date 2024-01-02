@@ -1,7 +1,14 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"tactix/engine"
+)
 
 func main() {
-	fmt.Println("Hello World")
+	fmt.Println("Tactix!!")
+
+	engine.FromStandardStartingPosition()
+	engine.PrintPosition()
+
 }
