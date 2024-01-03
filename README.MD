@@ -12,10 +12,9 @@ Level 0:
 - implement uci protocol
 - unit test for move generator
 
-
-
 ## References
 
 - [Blunder](https://github.com/algerbrex/blunder)
 - [Sebastian Lauge](https://www.youtube.com/@SebastianLague)
 - [Chess Programming Wiki](https://www.chessprogramming.org/Main_Page)
+  

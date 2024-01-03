@@ -3,7 +3,7 @@ package engine
 type MoveFlag uint8
 
 const (
-	None MoveFlag = iota
+	NoFlag MoveFlag = iota
 	PawnPush
 	Castling
 	EnPassentCapture
@@ -14,7 +14,7 @@ const (
 )
 
 type Move struct {
-	From uint8
-	To   uint8
+	From int8
+	To   int8
 	Flag MoveFlag
 }
