@@ -14,5 +14,4 @@ func TestStartingPosition(t *testing.T) {
 	if moveList.Count != 20 {
 		t.Errorf("Result was incorrect, got: %d, want: %d.", moveList.Count, 20)
 	}
-
 }

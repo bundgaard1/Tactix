@@ -3,8 +3,8 @@ package engine
 func (pos *Position) GenerateMoves() MoveList {
 
 	var moves MoveList
-	var i int8
-	for i = 1; i < 65; i++ {
+
+	for i := Square(1); i < 65; i++ {
 		currPiece := pos.Board[i]
 		if currPiece.Color != pos.ColorToMove {
 			continue
@@ -12,9 +12,9 @@ func (pos *Position) GenerateMoves() MoveList {
 
 		switch currPiece.PieceType {
 		case Pawn:
-			moves.AddMoves(genPawnMoves(i, currPiece.Color, pos))
+			moves.AddMoves(genPawnMoves(i, currPiece, pos))
 		case Knight:
-			moves.AddMoves(GenKnightMoves(i, currPiece.Color, pos))
+			moves.AddMoves(GenKnightMoves(i, currPiece, pos))
 		case Bishop, Queen, Rook:
 			moves.AddMoves(GenSlidingMoves(i, currPiece, pos))
 		case King:
@@ -27,54 +27,64 @@ func (pos *Position) GenerateMoves() MoveList {
 	return moves
 }
 
-func genPawnMoves(square int8, color Color, pos *Position) MoveList {
+func genPawnMoves(square Square, piece Piece, pos *Position) MoveList {
 	var pawnMoveList MoveList
-	var offset int8
-	if color == White {
+	var offset Square
+	if piece.Color == White {
 		offset = 8
 	} else {
 		offset = -8
 	}
+
 	// Move forward
 	if pos.Board[square+offset].PieceType == NoPiece {
 		pawnMoveList.AddMove(Move{From: square, To: square + offset, Flag: NoFlag})
 	}
-	push := square + 2*offset
+
 	// Push
-	if ((color == White && Rank(square) == 2) ||
-		(color == Black && Rank(square) == 7)) && pos.Board[square+offset].PieceType == NoPiece {
-		pawnMoveList.AddMove(Move{From: square, To: push, Flag: NoFlag})
+	push := square + 2*offset
+	if ((piece.Color == White && Rank(square) == 2) ||
+		(piece.Color == Black && Rank(square) == 7)) && pos.Board[square+offset].PieceType|pos.Board[push].PieceType == NoPiece {
+		pawnMoveList.AddMove(Move{From: square, To: push, Flag: PawnPush})
 	}
 
 	// Attack
-	if File(square) != 1 && pos.Board[square+offset-1].PieceType != NoPiece && pos.Board[square+offset-1].Color != color {
+	if File(square) != 1 && pos.Board[square+offset-1].PieceType != NoPiece && pos.Board[square+offset-1].Color != piece.Color {
 		pawnMoveList.AddMove(Move{From: square, To: square + offset - 1, Flag: NoFlag})
 	}
-	if File(square) != 8 && pos.Board[square+offset+1].PieceType != NoPiece && pos.Board[square+offset+1].Color != color {
+	if File(square) != 8 && pos.Board[square+offset+1].PieceType != NoPiece && pos.Board[square+offset+1].Color != piece.Color {
 		pawnMoveList.AddMove(Move{From: square, To: square + offset + 1, Flag: NoFlag})
 	}
 
 	// Promotion
-	if (Rank(square) == 7 && color == White) || (Rank(square) == 1 && color == Black) {
+	if (Rank(square) == 7 && piece.Color == White) || (Rank(square) == 2 && piece.Color == Black) {
 		var countBefore int = pawnMoveList.Count
 
 		for i := 0; i < countBefore; i++ {
 			pawnMoveList.Moves[i].Flag = PromotionToQueen
-			var to int8 = pawnMoveList.Moves[i].To
+			var to Square = pawnMoveList.Moves[i].To
 			pawnMoveList.AddMove(Move{square, to, PromotionToBishop})
 			pawnMoveList.AddMove(Move{square, to, PromotionToQueen})
 			pawnMoveList.AddMove(Move{square, to, PromotionToKnight})
 		}
 	}
 
-	// Still missing En passant
+	// Still missing EnPassant
+	if pos.EPFile != 0 && ((Rank(square) == 2 && piece.Color == White) || (Rank(square) == 7 && piece.Color == Black)) {
+		if File(square)-1 == pos.EPFile {
+			pawnMoveList.AddMove(Move{From: square, To: square + offset - 1, Flag: EnPassentCapture})
+		}
+		if File(square)+1 == pos.EPFile {
+			pawnMoveList.AddMove(Move{From: square, To: square + offset + 1, Flag: EnPassentCapture})
+		}
+	}
 
 	return pawnMoveList
 }
 
-var knightMoveOffsets = [8]int8{-17, -15, -6, -10, 6, 10, 15, 17}
+var knightMoveOffsets = [8]Square{-17, -15, -6, -10, 6, 10, 15, 17}
 
-func GenKnightMoves(square int8, color Color, pos *Position) MoveList {
+func GenKnightMoves(square Square, piece Piece, pos *Position) MoveList {
 
 	var allowedMoves uint8 = 0b1111_1111
 	switch Rank(square) {
@@ -101,25 +111,24 @@ func GenKnightMoves(square int8, color Color, pos *Position) MoveList {
 	var knightMoveList MoveList
 
 	for i := 0; i < 8; i++ {
-		if ((allowedMoves>>i)&0b1) == 0b1 && (pos.Board[square+knightMoveOffsets[i]].Color != color) {
+		if ((allowedMoves>>i)&0b1) == 0b1 && (pos.Board[square+knightMoveOffsets[i]].Color != piece.Color) {
 			knightMoveList.AddMove(Move{From: square, To: square + knightMoveOffsets[i], Flag: NoFlag})
 		}
 	}
 	return knightMoveList
 }
 
-var directionOffsets = [8]int8{8, -8, 1, -1, 7, -7, 9, -9}
+var directionOffsets = [8]Square{8, -8, 1, -1, 7, -7, 9, -9}
 
 var SqToEdgeComuted bool = false
 var numSquaresToEdge [65][8]int8
 
 func computeSquaresToEdge() {
-
-	for i := 1; i < 65; i++ {
-		numUp := 8 - Rank(int8(i))
-		numDown := Rank(int8(i)) - 1
-		numLeft := File(int8(i)) - 1
-		numRight := 8 - File(int8(i))
+	for i := Square(1); i < 65; i++ {
+		numUp := 8 - Rank(i)
+		numDown := Rank(i) - 1
+		numLeft := File(i) - 1
+		numRight := 8 - File(i)
 
 		numSquaresToEdge[i][0] = numUp
 		numSquaresToEdge[i][1] = numDown
@@ -134,15 +143,15 @@ func computeSquaresToEdge() {
 	SqToEdgeComuted = true
 }
 
-func GenSlidingMoves(square int8, piece Piece, pos *Position) MoveList {
+func GenSlidingMoves(square Square, piece Piece, pos *Position) MoveList {
 	if !SqToEdgeComuted {
 		computeSquaresToEdge()
 	}
 
 	var slidingMoveList MoveList
 
-	var dirStartIndex int8 = 0
-	var dirEndIndex int8 = 8
+	var dirStartIndex Square = 0
+	var dirEndIndex Square = 8
 
 	if piece.PieceType == Bishop {
 		dirStartIndex = 4
@@ -152,9 +161,8 @@ func GenSlidingMoves(square int8, piece Piece, pos *Position) MoveList {
 	}
 
 	for dirIndex := dirStartIndex; dirIndex < dirEndIndex; dirIndex++ {
-		var i int8
-		for i = 0; i < numSquaresToEdge[square][dirIndex]; i++ {
-			var to int8 = square + directionOffsets[dirIndex]*(i+1)
+		for i := int8(0); i < numSquaresToEdge[square][dirIndex]; i++ {
+			var to Square = square + directionOffsets[dirIndex]*Square(i+1)
 
 			var toColor Color = pos.Board[to].Color
 			if toColor == piece.Color {
@@ -172,26 +180,44 @@ func GenSlidingMoves(square int8, piece Piece, pos *Position) MoveList {
 	return slidingMoveList
 }
 
-func GenKingMoves(square int8, piece Piece, pos *Position) MoveList {
+func GenKingMoves(square Square, piece Piece, pos *Position) MoveList {
 	if !SqToEdgeComuted {
 		computeSquaresToEdge()
 	}
 
 	var kingMoveList MoveList
 
+	// Moving
 	for dirIndex := 0; dirIndex < 8; dirIndex++ {
-
 		if numSquaresToEdge[square][dirIndex] < 1 {
 			continue
 		}
 
-		var to int8 = square + directionOffsets[dirIndex]
-		var pieceOnTo Piece = pos.Board[to]
+		to := square + directionOffsets[dirIndex]
+		pieceOnTo := pos.Board[to]
 
 		if pieceOnTo.Color == piece.Color {
 			continue
 		}
 		kingMoveList.AddMove(Move{From: square, To: to, Flag: NoFlag})
+	}
+
+	// Castling
+	if square == Square(5) && piece.Color == White {
+		if pos.CastlingRights&WhiteKingsideRight != 0 && pos.Board[7].PieceType|pos.Board[6].PieceType == NoPiece {
+			kingMoveList.AddMove(Move{From: square, To: square + 2, Flag: Castling})
+		}
+		if pos.CastlingRights&WhiteQueensideRight != 0 && pos.Board[2].PieceType|pos.Board[3].PieceType|pos.Board[4].PieceType == NoPiece {
+			kingMoveList.AddMove(Move{From: square, To: square - 2, Flag: Castling})
+		}
+	}
+	if square == Square(61) && piece.Color == Black {
+		if pos.CastlingRights&BlackKingsideRight != 0 && pos.Board[62].PieceType|pos.Board[63].PieceType == NoPiece {
+			kingMoveList.AddMove(Move{From: square, To: square + 2, Flag: Castling})
+		}
+		if pos.CastlingRights&BlackQueensideRight != 0 && pos.Board[58].PieceType|pos.Board[59].PieceType|pos.Board[60].PieceType == NoPiece {
+			kingMoveList.AddMove(Move{From: square, To: square - 2, Flag: Castling})
+		}
 	}
 
 	return kingMoveList

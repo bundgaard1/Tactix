@@ -1,6 +1,7 @@
 package engine
 
-type MoveFlag uint8
+type MoveFlag int8
+type Square int8
 
 const (
 	NoFlag MoveFlag = iota
@@ -14,7 +15,7 @@ const (
 )
 
 type Move struct {
-	From int8
-	To   int8
+	From Square
+	To   Square
 	Flag MoveFlag
 }
