@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"strings"
 )
 
 type Color int8
@@ -28,6 +29,15 @@ const (
 	BlackKingsideRight  uint8 = 0x2
 	BlackQueensideRight uint8 = 0x1
 )
+
+func (c Color) String() string {
+	if c == White {
+		return "White"
+	} else if c == Black {
+		return "Black"
+	}
+	return "NO COLOR"
+}
 
 func (c Color) opposite() Color {
 	if c == White {
@@ -60,15 +70,98 @@ type Position struct {
 	ColorToMove    Color
 	CastlingRights uint8
 	EPFile         int8
+	Rule50         int8
 	Ply            uint16
 	prevStates     [100]State
+}
+
+var CharToPiece = map[rune]Piece{
+	'P': {White, Pawn},
+	'N': {White, Knight},
+	'B': {White, Bishop},
+	'R': {White, Rook},
+	'Q': {White, Queen},
+	'K': {White, King},
+	'p': {Black, Pawn},
+	'n': {Black, Knight},
+	'b': {Black, Bishop},
+	'r': {Black, Rook},
+	'q': {Black, Queen},
+	'k': {Black, King},
+}
+
+func (pos *Position) FromFEN(fen string) {
+	fenFields := strings.Split(fen, " ")
+
+	if len(fenFields) != 6 {
+		panic("Not 6 fields in FEN-string")
+	}
+
+	rank := 8
+	file := 1
+
+	for _, char := range fenFields[0] {
+		switch char {
+		case '/':
+			rank--
+			file = 1
+		case 'P', 'N', 'B', 'R', 'Q', 'K', 'p', 'n', 'b', 'r', 'q', 'k':
+			piece := CharToPiece[char]
+			pos.Board[(rank-1)*8+file] = piece
+			file++
+		case '1', '2', '3', '4', '5', '6', '7', '8':
+			file += int(char - '0')
+		}
+
+	}
+
+	// Side to move
+
+	if fenFields[1] == "w" {
+		pos.ColorToMove = White
+	} else if fenFields[1] == "b" {
+		pos.ColorToMove = Black
+	} else {
+		panic("Invalid FEN: side to move.")
+	}
+
+	// Castling ability
+
+	pos.CastlingRights = 0
+
+	for _, char := range fenFields[2] {
+		switch char {
+		case 'K':
+			pos.CastlingRights |= WhiteKingsideRight
+		case 'Q':
+			pos.CastlingRights |= WhiteQueensideRight
+		case 'k':
+			pos.CastlingRights |= BlackKingsideRight
+		case 'q':
+			pos.CastlingRights |= BlackQueensideRight
+		}
+	}
+
+	// En passant target square
+
+	if fenFields[3][0] == '-' {
+		pos.EPFile = 0
+	} else {
+		pos.EPFile = int8(fenFields[3][0] - '0')
+	}
+
+	// halfmove clock
+	pos.Rule50 = int8(fenFields[4][0] - '0')
+
+	// Fullmove counter
+	pos.Ply = uint16(fenFields[5][0] - '0')
 }
 
 func (pos *Position) FromStandardStartingPosition() {
 	pos.ColorToMove = White
 	pos.CastlingRights = 0b1111
 	pos.EPFile = 0
-	pos.Ply = 0
+	pos.Ply = 1
 
 	pos.Board[1], pos.Board[2], pos.Board[3], pos.Board[4] = Piece{White, Rook}, Piece{White, Knight}, Piece{White, Bishop}, Piece{White, Queen}
 	pos.Board[5], pos.Board[6], pos.Board[7], pos.Board[8] = Piece{White, King}, Piece{White, Bishop}, Piece{White, Knight}, Piece{White, Rook}
@@ -84,15 +177,45 @@ func (pos *Position) FromStandardStartingPosition() {
 	pos.Board[61], pos.Board[62], pos.Board[63], pos.Board[64] = Piece{Black, King}, Piece{Black, Bishop}, Piece{Black, Knight}, Piece{Black, Rook}
 }
 
+var PieceToChar = map[Color]map[PieceType]rune{
+	NoColor: {
+		NoPiece: ' ',
+	},
+	White: {
+		Pawn:   'P',
+		Knight: 'N',
+		Bishop: 'B',
+		Rook:   'R',
+		King:   'K',
+		Queen:  'Q',
+	},
+	Black: {
+		Pawn:   'p',
+		Knight: 'n',
+		Bishop: 'b',
+		Rook:   'r',
+		King:   'K',
+		Queen:  'q',
+	},
+}
+
 func (pos *Position) PrintPosition() {
+	fmt.Printf("---  Position --- \n")
+	fmt.Printf("	CTM: %s \n	EP-file: %d \n 	Ply: %d \n 	50 Rule: %d \n", pos.ColorToMove, pos.EPFile, pos.Ply, pos.Rule50)
+	fmt.Printf(" 	Castling: %s \n", CastelingRightsToString(pos.CastlingRights))
+
 	for row := 7; row >= 0; row-- {
+		fmt.Printf("+---+---+---+---+---+---+---+---+\n")
 		for file := 1; file <= 8; file++ {
 			i := row*8 + file
-			fmt.Printf(" %02d:", i)
-			fmt.Print(pos.Board[i])
+			piece := pos.Board[i]
+			fmt.Printf("| %c ", PieceToChar[piece.Color][piece.PieceType])
 		}
-		fmt.Print("\n")
+		fmt.Printf("| %d \n", row+1)
 	}
+	fmt.Printf("+---+---+---+---+---+---+---+---+\n")
+	fmt.Printf("  a   b   c   d   e   f   g   h\n")
+	fmt.Printf("\n")
 }
 
 func (pos *Position) MakeMove(move Move) {
@@ -192,11 +315,12 @@ func (pos *Position) MakeMove(move Move) {
 }
 
 func (pos *Position) UndoMove(move Move) {
+	pos.Ply--
 	prevState := pos.prevStates[pos.Ply]
 
 	pos.EPFile = prevState.EPFile
 	pos.CastlingRights = prevState.CastlingRights
-	pos.Ply--
+
 	pos.Board[move.From] = prevState.Moved
 
 	switch move.Flag {
@@ -206,23 +330,28 @@ func (pos *Position) UndoMove(move Move) {
 		if prevState.Moved.Color == White {
 			if move.To == Square(3) {
 				pos.Board[1] = pos.Board[4]
+				pos.Board[3] = Piece{NoColor, NoPiece}
 				pos.Board[4] = Piece{NoColor, NoPiece}
 			}
 			if move.To == Square(7) {
 				pos.Board[8] = pos.Board[6]
 				pos.Board[6] = Piece{NoColor, NoPiece}
+				pos.Board[7] = Piece{NoColor, NoPiece}
 			}
 		} else {
 			if move.To == Square(59) {
 				pos.Board[57] = pos.Board[60]
 				pos.Board[60] = Piece{NoColor, NoPiece}
+				pos.Board[59] = Piece{NoColor, NoPiece}
 			}
 			if move.To == Square(63) {
 				pos.Board[64] = pos.Board[62]
 				pos.Board[62] = Piece{NoColor, NoPiece}
+				pos.Board[63] = Piece{NoColor, NoPiece}
 			}
 		}
 	case EnPassentCapture:
+		pos.Board[move.To] = Piece{NoColor, NoPiece}
 		if prevState.Moved.Color == White {
 			pos.Board[move.To-8] = Piece{Black, Pawn}
 		} else {
@@ -231,12 +360,4 @@ func (pos *Position) UndoMove(move Move) {
 	}
 
 	pos.ColorToMove = pos.ColorToMove.opposite()
-}
-
-func Rank(square Square) int8 {
-	return int8(square-1)/8 + 1
-}
-
-func File(square Square) int8 {
-	return int8(square-1)%8 + 1
 }

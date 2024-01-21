@@ -1,5 +1,33 @@
 package engine
 
+func (pos *Position) GenerateLegalMoves() MoveList {
+	var pseudoLegalMoves MoveList = pos.GenerateMoves()
+	var legalMoves MoveList
+
+	for i := 0; i < pseudoLegalMoves.Count; i++ {
+		moveToVarify := pseudoLegalMoves.Moves[i]
+		pos.MakeMove(moveToVarify)
+		var oppoenentResponses = pos.GenerateMoves()
+		var addmove bool = true
+
+		for j := 0; j < oppoenentResponses.Count; j++ {
+			oppoRespons := oppoenentResponses.Moves[j]
+			targetPiece := pos.Board[oppoRespons.To]
+			if targetPiece.Color == pos.ColorToMove.opposite() && targetPiece.PieceType == King {
+				addmove = false
+				break
+			}
+		}
+		if addmove {
+			legalMoves.AddMove(moveToVarify)
+		}
+		pos.UndoMove(moveToVarify)
+	}
+
+	return legalMoves
+}
+
+// Generate PseudoLegalMoves
 func (pos *Position) GenerateMoves() MoveList {
 
 	var moves MoveList
@@ -69,8 +97,7 @@ func genPawnMoves(square Square, piece Piece, pos *Position) MoveList {
 		}
 	}
 
-	// Still missing EnPassant
-	if pos.EPFile != 0 && ((Rank(square) == 2 && piece.Color == White) || (Rank(square) == 7 && piece.Color == Black)) {
+	if pos.EPFile != 0 && ((Rank(square) == 5 && piece.Color == White) || (Rank(square) == 4 && piece.Color == Black)) {
 		if File(square)-1 == pos.EPFile {
 			pawnMoveList.AddMove(Move{From: square, To: square + offset - 1, Flag: EnPassentCapture})
 		}
@@ -82,7 +109,7 @@ func genPawnMoves(square Square, piece Piece, pos *Position) MoveList {
 	return pawnMoveList
 }
 
-var knightMoveOffsets = [8]Square{-17, -15, -6, -10, 6, 10, 15, 17}
+var knightMoveOffsets = [8]Square{-17, -15, -10, -6, 6, 10, 15, 17}
 
 func GenKnightMoves(square Square, piece Piece, pos *Position) MoveList {
 
@@ -99,21 +126,25 @@ func GenKnightMoves(square Square, piece Piece, pos *Position) MoveList {
 	}
 	switch File(square) {
 	case 1:
-		allowedMoves &= 0b1010_0101
+		allowedMoves &= 0b1010_1010
 	case 2:
-		allowedMoves &= 0b1110_0111
+		allowedMoves &= 0b1110_1011
 	case 7:
-		allowedMoves &= 0b1101_1011
+		allowedMoves &= 0b1101_0111
 	case 8:
-		allowedMoves &= 0b0101_1010
+		allowedMoves &= 0b0101_0101
 	}
 
 	var knightMoveList MoveList
 
+	// fmt.Printf("%d : file: %d  Rank:  %d  =  %08b\n", square, File(square), Rank(square), allowedMoves)
+
 	for i := 0; i < 8; i++ {
+		// fmt.Printf("%d : %d\n", i, (allowedMoves>>i)&0b1)
 		if ((allowedMoves>>i)&0b1) == 0b1 && (pos.Board[square+knightMoveOffsets[i]].Color != piece.Color) {
 			knightMoveList.AddMove(Move{From: square, To: square + knightMoveOffsets[i], Flag: NoFlag})
 		}
+
 	}
 	return knightMoveList
 }
