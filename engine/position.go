@@ -75,7 +75,7 @@ type Position struct {
 	prevStates     [100]State
 }
 
-var CharToPiece = map[rune]Piece{
+var FENCharToPiece = map[rune]Piece{
 	'P': {White, Pawn},
 	'N': {White, Knight},
 	'B': {White, Bishop},
@@ -106,7 +106,7 @@ func (pos *Position) FromFEN(fen string) {
 			rank--
 			file = 1
 		case 'P', 'N', 'B', 'R', 'Q', 'K', 'p', 'n', 'b', 'r', 'q', 'k':
-			piece := CharToPiece[char]
+			piece := FENCharToPiece[char]
 			pos.Board[(rank-1)*8+file] = piece
 			file++
 		case '1', '2', '3', '4', '5', '6', '7', '8':
@@ -158,23 +158,8 @@ func (pos *Position) FromFEN(fen string) {
 }
 
 func (pos *Position) FromStandardStartingPosition() {
-	pos.ColorToMove = White
-	pos.CastlingRights = 0b1111
-	pos.EPFile = 0
-	pos.Ply = 1
+	pos.FromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
 
-	pos.Board[1], pos.Board[2], pos.Board[3], pos.Board[4] = Piece{White, Rook}, Piece{White, Knight}, Piece{White, Bishop}, Piece{White, Queen}
-	pos.Board[5], pos.Board[6], pos.Board[7], pos.Board[8] = Piece{White, King}, Piece{White, Bishop}, Piece{White, Knight}, Piece{White, Rook}
-	for i := 9; i <= 16; i++ {
-		pos.Board[i] = Piece{White, Pawn}
-	}
-
-	for i := 49; i <= 56; i++ {
-		pos.Board[i] = Piece{Black, Pawn}
-	}
-
-	pos.Board[57], pos.Board[58], pos.Board[59], pos.Board[60] = Piece{Black, Rook}, Piece{Black, Knight}, Piece{Black, Bishop}, Piece{Black, Queen}
-	pos.Board[61], pos.Board[62], pos.Board[63], pos.Board[64] = Piece{Black, King}, Piece{Black, Bishop}, Piece{Black, Knight}, Piece{Black, Rook}
 }
 
 var PieceToChar = map[Color]map[PieceType]rune{
@@ -194,7 +179,7 @@ var PieceToChar = map[Color]map[PieceType]rune{
 		Knight: 'n',
 		Bishop: 'b',
 		Rook:   'r',
-		King:   'K',
+		King:   'k',
 		Queen:  'q',
 	},
 }

@@ -1,6 +1,8 @@
 package engine
 
 func (pos *Position) GenerateLegalMoves() MoveList {
+	// ------- NAIVE SOLUTION --------
+	// Very Slow
 	var pseudoLegalMoves MoveList = pos.GenerateMoves()
 	var legalMoves MoveList
 
@@ -8,17 +10,17 @@ func (pos *Position) GenerateLegalMoves() MoveList {
 		moveToVarify := pseudoLegalMoves.Moves[i]
 		pos.MakeMove(moveToVarify)
 		var oppoenentResponses = pos.GenerateMoves()
-		var addmove bool = true
+		var addMove bool = true
 
 		for j := 0; j < oppoenentResponses.Count; j++ {
 			oppoRespons := oppoenentResponses.Moves[j]
 			targetPiece := pos.Board[oppoRespons.To]
 			if targetPiece.Color == pos.ColorToMove.opposite() && targetPiece.PieceType == King {
-				addmove = false
+				addMove = false
 				break
 			}
 		}
-		if addmove {
+		if addMove {
 			legalMoves.AddMove(moveToVarify)
 		}
 		pos.UndoMove(moveToVarify)
@@ -27,12 +29,27 @@ func (pos *Position) GenerateLegalMoves() MoveList {
 	return legalMoves
 }
 
-// Generate PseudoLegalMoves
+func (pos *Position) GenerateLegalMoves2() MoveList {
+	// var pseudoLegalMoves MoveList = pos.GenerateMoves()
+	var legalMoves MoveList
+
+	// Kingmoves
+	// 		Calculate attacked square,
+	//		and if it is a king that moves, make sure it is not into an attacked square
+
+	// Check evasions
+	//  	Single checks
+	// 		Double checks
+
+	return legalMoves
+}
+
+// Generate Pseudo-Legal Moves
 func (pos *Position) GenerateMoves() MoveList {
 
 	var moves MoveList
 
-	for i := Square(1); i < 65; i++ {
+	for i := Square(1); i <= 64; i++ {
 		currPiece := pos.Board[i]
 		if currPiece.Color != pos.ColorToMove {
 			continue
@@ -141,7 +158,7 @@ func GenKnightMoves(square Square, piece Piece, pos *Position) MoveList {
 
 	for i := 0; i < 8; i++ {
 		// fmt.Printf("%d : %d\n", i, (allowedMoves>>i)&0b1)
-		if ((allowedMoves>>i)&0b1) == 0b1 && (pos.Board[square+knightMoveOffsets[i]].Color != piece.Color) {
+		if ((allowedMoves>>i)&1) == 1 && (pos.Board[square+knightMoveOffsets[i]].Color != piece.Color) {
 			knightMoveList.AddMove(Move{From: square, To: square + knightMoveOffsets[i], Flag: NoFlag})
 		}
 
