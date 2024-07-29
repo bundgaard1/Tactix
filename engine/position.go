@@ -9,6 +9,17 @@ type Color int8
 type PieceType int8
 
 const (
+	A8, B8, C8, D8, E8, F8, G8, H8 = 57, 58, 59, 60, 61, 62, 63, 64
+	A7, B7, C7, D7, E7, F7, G7, H7 = 49, 50, 51, 52, 53, 54, 55, 56
+	A6, B6, C6, D6, E6, F6, G6, H6 = 41, 42, 43, 44, 45, 46, 47, 48
+	A5, B5, C5, D5, E5, F5, G5, H5 = 33, 34, 35, 36, 37, 38, 39, 40
+	A4, B4, C4, D4, E4, F4, G4, H4 = 25, 26, 27, 28, 29, 30, 31, 32
+	A3, B3, C3, D3, E3, F3, G3, H3 = 17, 18, 19, 20, 21, 22, 23, 24
+	A2, B2, C2, D2, E2, F2, G2, H2 = 9, 10, 11, 12, 13, 14, 15, 16
+	A1, B1, C1, D1, E1, F1, G1, H1 = 1, 2, 3, 4, 5, 6, 7, 8
+)
+
+const (
 	// Piece types
 	NoPiece PieceType = 0
 	Pawn    PieceType = 1
@@ -62,17 +73,17 @@ type State struct {
 }
 
 type Position struct {
-	// One extra for invalid: index 0
-	// 1-8 rank 1
-	// ...
-	// 56-64 rank 8
-	Board          [65]Piece
+	Board [65]Piece
+
+	// Game state
 	ColorToMove    Color
 	CastlingRights uint8
 	EPFile         int8
 	Rule50         int8
 	Ply            uint16
-	prevStates     [100]State
+
+	// History
+	prevStates [100]State
 }
 
 var FENCharToPiece = map[rune]Piece{
@@ -90,7 +101,8 @@ var FENCharToPiece = map[rune]Piece{
 	'k': {Black, King},
 }
 
-func (pos *Position) FromFEN(fen string) {
+func FromFEN(fen string) Position {
+	var pos Position
 	fenFields := strings.Split(fen, " ")
 
 	if len(fenFields) != 6 {
@@ -155,11 +167,12 @@ func (pos *Position) FromFEN(fen string) {
 
 	// Fullmove counter
 	pos.Ply = uint16(fenFields[5][0] - '0')
+
+	return pos
 }
 
-func (pos *Position) FromStandardStartingPosition() {
-	pos.FromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-
+func FromStandardStartingPosition() Position {
+	return FromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
 }
 
 var PieceToChar = map[Color]map[PieceType]rune{
@@ -184,25 +197,29 @@ var PieceToChar = map[Color]map[PieceType]rune{
 	},
 }
 
-func (pos *Position) PrintPosition() {
-	fmt.Printf("---  Position --- \n")
-	fmt.Printf("	CTM: %s \n	EP-file: %d \n 	Ply: %d \n 	50 Rule: %d \n", pos.ColorToMove, pos.EPFile, pos.Ply, pos.Rule50)
-	fmt.Printf(" 	Castling: %s \n", CastelingRightsToString(pos.CastlingRights))
+func (pos *Position) String() string {
+	var str strings.Builder
+	str.WriteString("---  Position --- \n")
+	str.WriteString(fmt.Sprintf("	CTM: %s \n	EP-file: %d \n 	Ply: %d \n 	50 Rule: %d \n", pos.ColorToMove, pos.EPFile, pos.Ply, pos.Rule50))
+	str.WriteString(fmt.Sprintf(" 	Castling: %s \n", CastelingRightsToString(pos.CastlingRights)))
 
 	for row := 7; row >= 0; row-- {
-		fmt.Printf("+---+---+---+---+---+---+---+---+\n")
+		str.WriteString("+---+---+---+---+---+---+---+---+\n")
 		for file := 1; file <= 8; file++ {
 			i := row*8 + file
 			piece := pos.Board[i]
-			fmt.Printf("| %c ", PieceToChar[piece.Color][piece.PieceType])
+			str.WriteString(fmt.Sprintf("| %c ", PieceToChar[piece.Color][piece.PieceType]))
 		}
-		fmt.Printf("| %d \n", row+1)
+		str.WriteString(fmt.Sprintf("| %d \n", row+1))
 	}
-	fmt.Printf("+---+---+---+---+---+---+---+---+\n")
-	fmt.Printf("  a   b   c   d   e   f   g   h\n")
-	fmt.Printf("\n")
+	str.WriteString("+---+---+---+---+---+---+---+---+\n")
+	str.WriteString("  a   b   c   d   e   f   g   h\n")
+	str.WriteString("\n")
+
+	return str.String()
 }
 
+// This function assumes that the move is valid
 func (pos *Position) MakeMove(move Move) {
 
 	movedPiece := pos.Board[move.From]
@@ -345,4 +362,12 @@ func (pos *Position) UndoMove(move Move) {
 	}
 
 	pos.ColorToMove = pos.ColorToMove.opposite()
+}
+
+// order wk wq, bk, bq
+func (pos *Position) getCastlingRights() (bool, bool, bool, bool) {
+	return (pos.CastlingRights&WhiteKingsideRight != 0),
+		(pos.CastlingRights&WhiteQueensideRight != 0),
+		(pos.CastlingRights&BlackKingsideRight != 0),
+		(pos.CastlingRights&BlackQueensideRight != 0)
 }

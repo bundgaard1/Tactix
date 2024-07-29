@@ -1,15 +1,9 @@
 package main
 
 import (
-	"fmt"
-	bbcalc "tactix/BBcalc"
+	"tactix/cli"
 )
 
 func main() {
-	fmt.Println("Tactix!!")
-
-	bbcalc.CalculateKnightMoveBB()
-
-
-
+	cli.Run()
 }

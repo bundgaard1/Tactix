@@ -4,15 +4,12 @@ import (
 	"fmt"
 	"tactix/engine"
 	"testing"
-	"time"
 )
 
 func TestStartingPosition(t *testing.T) {
-	var pos engine.Position
+	pos := engine.FromStandardStartingPosition()
 
-	pos.FromStandardStartingPosition()
-
-	var moveList engine.MoveList = pos.GenerateMoves()
+	var moveList engine.MoveList = engine.GetValidMoves(&pos)
 
 	if moveList.Count != 20 {
 		t.Errorf("Result was incorrect, got: %d, want: %d.", moveList.Count, 20)
@@ -20,13 +17,11 @@ func TestStartingPosition(t *testing.T) {
 }
 
 func TestPerftFromStart(t *testing.T) {
-	var pos engine.Position
-
-	pos.FromStandardStartingPosition()
+	pos := engine.FromStandardStartingPosition()
 
 	perftDepth4Nodes := 197281
 
-	nodesDepth4Result := perft(&pos, 4)
+	nodesDepth4Result := engine.Perft(&pos, 4)
 
 	if perftDepth4Nodes != nodesDepth4Result {
 		t.Error("Perft result not as expected: ", perftDepth4Nodes, " got: ", nodesDepth4Result)
@@ -34,7 +29,7 @@ func TestPerftFromStart(t *testing.T) {
 }
 
 type PerftTestData struct {
-	Pos           string
+	FEN           string
 	Depth         int
 	ExpectedNodes int
 }
@@ -63,12 +58,10 @@ var PerftSuite = []PerftTestData{
 }
 
 func TestPerftSuite(t *testing.T) {
-
 	for i, perftTest := range PerftSuite {
-		var pos engine.Position
-		pos.FromFEN(perftTest.Pos)
+		pos := engine.FromFEN(perftTest.FEN)
 
-		nodesExplored := perft(&pos, perftTest.Depth)
+		nodesExplored := engine.Perft(&pos, perftTest.Depth)
 
 		fmt.Print("Test ", i, " : ", nodesExplored, " ")
 		if nodesExplored == perftTest.ExpectedNodes {
@@ -78,56 +71,4 @@ func TestPerftSuite(t *testing.T) {
 
 		}
 	}
-}
-
-func perft(pos *engine.Position, depth int) int {
-	nodes := 0
-
-	moveList := pos.GenerateLegalMoves()
-
-	if depth == 1 {
-		return moveList.Count
-	}
-
-	for i := 0; i < moveList.Count; i++ {
-		pos.MakeMove(moveList.Moves[i])
-		nodes += perft(pos, depth-1)
-		pos.UndoMove(moveList.Moves[i])
-	}
-
-	return nodes
-}
-
-func perftDivided(pos *engine.Position, depth int) int {
-	start := time.Now()
-
-	nodes := 0
-
-	moveList := pos.GenerateLegalMoves()
-
-	if depth == 1 {
-		// for i := 0; i < moveList.Count; i++ {
-		// 	moveList.Moves[i].Print()
-		// }
-		return moveList.Count
-	}
-
-	for i := 0; i < moveList.Count; i++ {
-		move := moveList.Moves[i]
-		move.Print()
-		pos.MakeMove(move)
-		newNodes := perft(pos, depth-1)
-		pos.UndoMove(move)
-		fmt.Printf("%d \n", newNodes)
-		nodes += newNodes
-	}
-
-	duration := time.Since(start)
-
-	fmt.Printf("\n Perft nodes: %d\n", nodes)
-	fmt.Printf("	Runtime: %d ms \n", duration.Milliseconds())
-	nodesPerSecond := nodes / int(duration.Milliseconds())
-	fmt.Printf("	nodes/s: %d k \n\n ", nodesPerSecond)
-
-	return nodes
 }

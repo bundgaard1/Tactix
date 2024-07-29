@@ -1,16 +1,6 @@
-# Chess engine
+# Tactix
 
-third go at a chess engine... lets make it work!
-
-## Goals
-
-Ultimate goal: An UCI compatible chess engine.
-
-Level 0:
-
-- able to generate legal moves and select random move
-- implement uci protocol
-- unit test for move generator
+Chess Engine written in Go. This goal of this project is to create a chess engine, with board analysis, move generation, and a simple AI.
 
 ## References
 
