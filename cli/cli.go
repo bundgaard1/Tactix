@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strconv"
 	"tactix/engine"
 )
 
@@ -47,6 +48,9 @@ func Run() {
 		}
 		lexer := NewLexer(input)
 		command := lexer.GetNextToken()
+		if lexer.IsAtEnd() {
+			continue
+		}
 		cli.handleCommand(command.Literal, &lexer)
 	}
 }
@@ -55,8 +59,16 @@ func (cli *Cli) handleCommand(command string, lexer *Lexer) {
 	switch command {
 	case "print", "p":
 		fmt.Println(cli.board.String())
+	case "perft":
+		cli.handlePerftCommand(lexer)
 	case "move", "m":
 		cli.handleMoveCommand(lexer)
+	case "fen":
+		fmt.Println(engine.FEN(&cli.board))
+	case "position", "pos":
+		cli.handlePositionCommand(lexer)
+	case "help", "h":
+		cli.handleHelpCommand()
 	case "quit", "q":
 		os.Exit(0)
 	default:
@@ -73,6 +85,7 @@ func (cli *Cli) handleMoveCommand(lexer *Lexer) {
 		fmt.Println("Invalid move")
 		return
 	}
+
 	fmt.Println(move.String())
 
 	if !engine.IsMoveValid(&cli.board, move) {
@@ -81,4 +94,39 @@ func (cli *Cli) handleMoveCommand(lexer *Lexer) {
 	}
 
 	cli.board.MakeMove(move)
+	fmt.Println(cli.board.String())
+
+}
+
+func (cli *Cli) handlePerftCommand(lexer *Lexer) {
+	depthStr := lexer.GetNextToken()
+
+	depth, err := strconv.Atoi(depthStr.Literal)
+
+	if err != nil {
+		fmt.Println("Invalid depth")
+		return
+	}
+
+	summary, nodes := engine.PerftDivided(&cli.board, depth)
+
+	fmt.Println(summary)
+	fmt.Println("Total nodes: ", nodes)
+}
+
+func (cli *Cli) handlePositionCommand(lexer *Lexer) {
+	fenStr := lexer.GetRestOfInput()
+	cli.board = engine.FromFEN(fenStr)
+	fmt.Println(cli.board.String())
+}
+
+func (cli *Cli) handleHelpCommand() {
+	fmt.Println("Commands:")
+	fmt.Println("	print - Print the current board")
+	fmt.Println("	move <move> - Make a move")
+	fmt.Println("	perft <depth> - Run perft to a certain depth")
+	fmt.Println("	fen - Print the board from a fen string")
+	fmt.Println("	position <fen> - Set the board to a fen string")
+	fmt.Println("	help - Print this help message")
+	fmt.Println("	quit - Exit the program")
 }

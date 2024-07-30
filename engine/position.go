@@ -84,117 +84,14 @@ type Position struct {
 
 	// History
 	prevStates [100]State
-}
 
-var FENCharToPiece = map[rune]Piece{
-	'P': {White, Pawn},
-	'N': {White, Knight},
-	'B': {White, Bishop},
-	'R': {White, Rook},
-	'Q': {White, Queen},
-	'K': {White, King},
-	'p': {Black, Pawn},
-	'n': {Black, Knight},
-	'b': {Black, Bishop},
-	'r': {Black, Rook},
-	'q': {Black, Queen},
-	'k': {Black, King},
-}
-
-func FromFEN(fen string) Position {
-	var pos Position
-	fenFields := strings.Split(fen, " ")
-
-	if len(fenFields) != 6 {
-		panic("Not 6 fields in FEN-string")
-	}
-
-	rank := 8
-	file := 1
-
-	for _, char := range fenFields[0] {
-		switch char {
-		case '/':
-			rank--
-			file = 1
-		case 'P', 'N', 'B', 'R', 'Q', 'K', 'p', 'n', 'b', 'r', 'q', 'k':
-			piece := FENCharToPiece[char]
-			pos.Board[(rank-1)*8+file] = piece
-			file++
-		case '1', '2', '3', '4', '5', '6', '7', '8':
-			file += int(char - '0')
-		}
-
-	}
-
-	// Side to move
-
-	if fenFields[1] == "w" {
-		pos.ColorToMove = White
-	} else if fenFields[1] == "b" {
-		pos.ColorToMove = Black
-	} else {
-		panic("Invalid FEN: side to move.")
-	}
-
-	// Castling ability
-
-	pos.CastlingRights = 0
-
-	for _, char := range fenFields[2] {
-		switch char {
-		case 'K':
-			pos.CastlingRights |= WhiteKingsideRight
-		case 'Q':
-			pos.CastlingRights |= WhiteQueensideRight
-		case 'k':
-			pos.CastlingRights |= BlackKingsideRight
-		case 'q':
-			pos.CastlingRights |= BlackQueensideRight
-		}
-	}
-
-	// En passant target square
-
-	if fenFields[3][0] == '-' {
-		pos.EPFile = 0
-	} else {
-		pos.EPFile = int8(fenFields[3][0] - '0')
-	}
-
-	// halfmove clock
-	pos.Rule50 = int8(fenFields[4][0] - '0')
-
-	// Fullmove counter
-	pos.Ply = uint16(fenFields[5][0] - '0')
-
-	return pos
+	// Kings position
+	WhiteKing Square
+	BlackKing Square
 }
 
 func FromStandardStartingPosition() Position {
 	return FromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-}
-
-var PieceToChar = map[Color]map[PieceType]rune{
-	NoColor: {
-		NoPiece: ' ',
-	},
-	White: {
-		Pawn:   'P',
-		Knight: 'N',
-		Bishop: 'B',
-		Rook:   'R',
-		King:   'K',
-		Queen:  'Q',
-	},
-	Black: {
-		Pawn:   'p',
-		Knight: 'n',
-		Bishop: 'b',
-		Rook:   'r',
-		King:   'k',
-		Queen:  'q',
-	},
 }
 
 func (pos *Position) String() string {
@@ -208,7 +105,7 @@ func (pos *Position) String() string {
 		for file := 1; file <= 8; file++ {
 			i := row*8 + file
 			piece := pos.Board[i]
-			str.WriteString(fmt.Sprintf("| %c ", PieceToChar[piece.Color][piece.PieceType]))
+			str.WriteString(fmt.Sprintf("| %c ", PieceToFENChar[piece.Color][piece.PieceType]))
 		}
 		str.WriteString(fmt.Sprintf("| %d \n", row+1))
 	}
@@ -364,7 +261,7 @@ func (pos *Position) UndoMove(move Move) {
 	pos.ColorToMove = pos.ColorToMove.opposite()
 }
 
-// order wk wq, bk, bq
+// order : wk, wq, bk, bq
 func (pos *Position) getCastlingRights() (bool, bool, bool, bool) {
 	return (pos.CastlingRights&WhiteKingsideRight != 0),
 		(pos.CastlingRights&WhiteQueensideRight != 0),

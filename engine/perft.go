@@ -2,10 +2,13 @@ package engine
 
 import (
 	"fmt"
-	"time"
+	"strings"
 )
 
 func Perft(pos *Position, depth int) int {
+	if depth == 0 {
+		return 1
+	}
 	nodes := 0
 
 	moveList := GetValidMoves(pos)
@@ -23,16 +26,12 @@ func Perft(pos *Position, depth int) int {
 	return nodes
 }
 
-func PerftDivided(pos *Position, depth int) int {
-	start := time.Now()
+// Returns a summary with the move and the number of nodes for each move
+func PerftDivided(pos *Position, depth int) (string, int) {
+	var str strings.Builder
 
-	nodes := 0
-
+	totalNodes := 0
 	moveList := GetValidMoves(pos)
-
-	if depth == 1 {
-		return moveList.Count
-	}
 
 	for i := 0; i < moveList.Count; i++ {
 		move := moveList.Moves[i]
@@ -40,16 +39,9 @@ func PerftDivided(pos *Position, depth int) int {
 		newNodes := Perft(pos, depth-1)
 		pos.UndoMove(move)
 
-		fmt.Printf("%s : %d \n", move.String(), newNodes)
-		nodes += newNodes
+		str.WriteString(fmt.Sprintf("%s : %d \n", move.UCIString(), newNodes))
+		totalNodes += newNodes
 	}
 
-	duration := time.Since(start)
-
-	fmt.Printf("\n Perft nodes: %d\n", nodes)
-	fmt.Printf("	Runtime: %d ms \n", duration.Milliseconds())
-	nodesPerSecond := nodes / int(duration.Milliseconds())
-	fmt.Printf("	nodes/s: %d k \n\n ", nodesPerSecond)
-
-	return nodes
+	return str.String(), totalNodes
 }

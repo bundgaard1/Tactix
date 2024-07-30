@@ -2,6 +2,10 @@ package engine
 
 import "errors"
 
+func DeriveSquare(file int, rank int) Square {
+	return Square((rank-1)*8 + file)
+}
+
 func Rank(square Square) int8 {
 	return int8(square-1)/8 + 1
 }
@@ -66,6 +70,7 @@ func ParseUCIMove(pos *Position, algMove string) (Move, error) {
 	return move, nil
 }
 
+// does not support different promotion
 func flagForMove(pos *Position, move Move) MoveFlag {
 	if pos.Board[move.From].PieceType == Pawn {
 		if pos.Board[move.To].PieceType == NoPiece {

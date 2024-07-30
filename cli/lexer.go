@@ -40,12 +40,18 @@ func NewLexer(inputText string) Lexer {
 func (l *Lexer) GetNextToken() Token {
 	l.skipWhiteSpace()
 
-	var token Token
-	if isLetter(l.ch) {
-		token = CreateToken(0, l.readIdent())
-	}
+	token := CreateToken(0, l.readIdent())
 
 	return token
+}
+
+func (l *Lexer) IsAtEnd() bool {
+	return l.position >= len(l.input)
+}
+
+func (l *Lexer) GetRestOfInput() string {
+	l.skipWhiteSpace()
+	return l.input[l.position:]
 }
 
 func (l *Lexer) readChar() {

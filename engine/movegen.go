@@ -3,34 +3,14 @@ package engine
 // ------- NAIVE SOLUTION --------
 // Very Slow
 func GetValidMoves(pos *Position) MoveList {
-	var pseudoLegalMoves MoveList = GetAllMoves(pos)
+
 	var legalMoves MoveList
-
-	for i := 0; i < pseudoLegalMoves.Count; i++ {
-		moveToVarify := pseudoLegalMoves.Moves[i]
-		pos.MakeMove(moveToVarify)
-		var oppoenentResponses = GetAllMoves(pos)
-		var addMove bool = true
-
-		for j := 0; j < oppoenentResponses.Count; j++ {
-			oppoRespons := oppoenentResponses.Moves[j]
-			targetPiece := pos.Board[oppoRespons.To]
-			if targetPiece.Color == pos.ColorToMove.opposite() && targetPiece.PieceType == King {
-				addMove = false
-				break
-			}
-		}
-		if addMove {
-			legalMoves.AddMove(moveToVarify)
-		}
-		pos.UndoMove(moveToVarify)
-	}
 
 	return legalMoves
 }
 
 // Generate Pseudo-Legal Moves
-func GetAllMoves(pos *Position) MoveList {
+func GetAllPossibleMoves(pos *Position) MoveList {
 
 	var moves MoveList
 
@@ -233,27 +213,40 @@ func genKingMoves(pos *Position, square Square, piece Piece) MoveList {
 		kingMoveList.AddMove(Move{From: square, To: to, Flag: NoFlag})
 	}
 
-	// Castling
+	return kingMoveList
+}
+
+func genCastlingMoves(pos *Position, square Square, piece Piece) MoveList {
+	var castlingMoves MoveList
+
+	if squareUnderAttack(pos, square) {
+		return MoveList{}
+	}
+
 	wk, wq, bk, bq := pos.getCastlingRights()
 
 	if square == Square(E1) && piece.Color == White {
-		if wk && pos.Board[F1].PieceType|pos.Board[G1].PieceType == NoPiece {
-			kingMoveList.AddMove(Move{From: square, To: square + 2, Flag: Castling})
+		if wk && pos.Board[F1].PieceType|pos.Board[G1].PieceType == NoPiece &&
+			!squareUnderAttack(pos, F1) && !squareUnderAttack(pos, G1) {
+			castlingMoves.AddMove(Move{From: square, To: square + 2, Flag: Castling})
 		}
-		if wq && pos.Board[2].PieceType|pos.Board[3].PieceType|pos.Board[4].PieceType == NoPiece {
-			kingMoveList.AddMove(Move{From: square, To: square - 2, Flag: Castling})
+		if wq && pos.Board[2].PieceType|pos.Board[3].PieceType|pos.Board[4].PieceType == NoPiece &&
+			!squareUnderAttack(pos, D1) && !squareUnderAttack(pos, C1) {
+			castlingMoves.AddMove(Move{From: square, To: square - 2, Flag: Castling})
 		}
 	}
 	if square == Square(E8) && piece.Color == Black {
-		if bk && pos.Board[F8].PieceType|pos.Board[G8].PieceType == NoPiece {
-			kingMoveList.AddMove(Move{From: square, To: square + 2, Flag: Castling})
+		if bk && pos.Board[F8].PieceType|pos.Board[G8].PieceType == NoPiece &&
+			!squareUnderAttack(pos, F8) && !squareUnderAttack(pos, G8) {
+			castlingMoves.AddMove(Move{From: square, To: square + 2, Flag: Castling})
 		}
-		if bq && pos.Board[B8].PieceType|pos.Board[C8].PieceType|pos.Board[D8].PieceType == NoPiece {
-			kingMoveList.AddMove(Move{From: square, To: square - 2, Flag: Castling})
+		if bq && pos.Board[B8].PieceType|pos.Board[C8].PieceType|pos.Board[D8].PieceType == NoPiece &&
+			!squareUnderAttack(pos, D8) && !squareUnderAttack(pos, C8) {
+			castlingMoves.AddMove(Move{From: square, To: square - 2, Flag: Castling})
 		}
 	}
 
-	return kingMoveList
+	return castlingMoves
 }
 
 func squareUnderAttack(pos *Position, sq Square) bool {
@@ -262,7 +255,7 @@ func squareUnderAttack(pos *Position, sq Square) bool {
 	}
 
 	pos.ColorToMove = pos.ColorToMove.opposite()
-	opponentMoves := GetAllMoves(pos)
+	opponentMoves := GetAllPossibleMoves(pos)
 	pos.ColorToMove = pos.ColorToMove.opposite()
 
 	for i := 0; i < opponentMoves.Count; i++ {
