@@ -6,10 +6,19 @@ func GetValidMoves(pos *Position) MoveList {
 
 	var legalMoves MoveList
 
+	// 1. Bitboard for Attacking squares for enemy pieces
+	// attackedSquaresMask := BBSquaresUnderAttack(pos)
+
+	// 2. Bitboard for Lines of pined pieces
+	// pinnedSquaresMask := BBPinnedSquares(pos)
+	if inCheck(pos) {
+	}
+
 	return legalMoves
 }
 
-// Generate Pseudo-Legal Moves
+// All Posible Moves without checking if they are legal
+// No castling.
 func GetAllPossibleMoves(pos *Position) MoveList {
 
 	var moves MoveList
@@ -161,21 +170,13 @@ func genSlidingMoves(pos *Position, square Square, piece Piece) MoveList {
 
 	var slidingMoveList MoveList
 
-	var dirStartIndex Square = 0
-	var dirEndIndex Square = 8
-
-	if piece.PieceType == Bishop {
-		dirStartIndex = 4
-	}
-	if piece.PieceType == Rook {
-		dirEndIndex = 4
-	}
+	dirStartIndex, dirEndIndex := slidingStartAndEndIndex(piece.PieceType)
 
 	for dirIndex := dirStartIndex; dirIndex < dirEndIndex; dirIndex++ {
 		for i := int8(0); i < numSquaresToEdge[square][dirIndex]; i++ {
-			var to Square = square + directionOffsets[dirIndex]*Square(i+1)
+			to := square + directionOffsets[dirIndex]*Square(i+1)
 
-			var toColor Color = pos.Board[to].Color
+			toColor := pos.Board[to].Color
 			if toColor == piece.Color {
 				break
 			}
@@ -189,6 +190,16 @@ func genSlidingMoves(pos *Position, square Square, piece Piece) MoveList {
 	}
 
 	return slidingMoveList
+}
+
+func slidingStartAndEndIndex(pieceType PieceType) (Square, Square) {
+	if pieceType == Bishop {
+		return 4, 8
+	}
+	if pieceType == Rook {
+		return 0, 4
+	}
+	return 0, 8
 }
 
 func genKingMoves(pos *Position, square Square, piece Piece) MoveList {
@@ -247,6 +258,91 @@ func genCastlingMoves(pos *Position, square Square, piece Piece) MoveList {
 	}
 
 	return castlingMoves
+}
+
+func inCheck(pos *Position) bool {
+	kingSquare := pos.GetKingSquare(pos.ColorToMove)
+	return squareUnderAttack(pos, kingSquare)
+}
+
+// enemy pieces can also be "Under attack", which makes them not accessable by the king.
+func BBSquaresUnderAttack(pos *Position) Bitboard {
+	if !SqToEdgeComputed {
+		computeSquaresToEdge()
+	}
+
+	var attackedSquares Bitboard
+
+	pos.ColorToMove = pos.ColorToMove.opposite()
+	opponentMoves := GetAllPossibleMoves(pos)
+	pos.ColorToMove = pos.ColorToMove.opposite()
+
+	for i := 0; i < opponentMoves.Count; i++ {
+		move := opponentMoves.Moves[i]
+		if pos.Board[move.From].PieceType == Pawn {
+			if File(move.From) != File(move.To) {
+				attackedSquares.SetBit(move.To)
+			}
+		} else {
+			attackedSquares.SetBit(opponentMoves.Moves[i].To)
+		}
+	}
+	return attackedSquares
+}
+
+func BBPinnedSquares(pos *Position) Bitboard {
+	var pinnedSquares Bitboard
+
+	if !SqToEdgeComputed {
+		computeSquaresToEdge()
+	}
+
+	// Go though each enemy piece, and check if it is attacking the king and counting how many pieces are blicking its attack,
+	// if there is only one piece blocking the attack, then it is pinned.
+
+	for sq := Square(1); sq <= 64; sq++ {
+		currPiece := pos.Board[sq]
+
+		if currPiece.PieceType == NoPiece || currPiece.Color == pos.ColorToMove || currPiece.PieceType == Pawn {
+			continue
+		}
+
+		dirStartIndex, dirEndIndex := slidingStartAndEndIndex(currPiece.PieceType)
+
+		for dirIndex := dirStartIndex; dirIndex < dirEndIndex; dirIndex++ {
+			piecesGoneThrough := 0
+
+			for i := int8(0); i < numSquaresToEdge[sq][dirIndex]; i++ {
+				to := sq + directionOffsets[dirIndex]*Square(i+1)
+
+				toColor := pos.Board[to].Color
+				if toColor == currPiece.Color {
+					break
+				}
+
+				if pos.GetKingSquare(pos.ColorToMove) == to && piecesGoneThrough == 1 {
+					// Set all the previous squares to a pinned square
+					for j := int8(0); j <= i; j++ {
+						pinnedSquares.SetBit(sq + directionOffsets[dirIndex]*Square(j+1))
+					}
+					pinnedSquares.SetBit(sq)
+					break
+				}
+				if toColor == currPiece.Color.opposite() {
+					if piecesGoneThrough == 1 {
+						break
+					} else {
+						piecesGoneThrough++
+					}
+				}
+
+			}
+
+		}
+
+	}
+
+	return pinnedSquares
 }
 
 func squareUnderAttack(pos *Position, sq Square) bool {

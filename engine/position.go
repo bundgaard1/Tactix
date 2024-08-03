@@ -206,6 +206,11 @@ func (pos *Position) MakeMove(move Move) {
 		}
 	}
 
+	// Update the king position
+	if movedPiece.PieceType == King {
+		pos.updateKingSquare(movedPiece.Color, Square(move.To))
+	}
+
 	pos.prevStates[pos.Ply] = state
 	pos.Ply++
 
@@ -258,6 +263,12 @@ func (pos *Position) UndoMove(move Move) {
 		}
 	}
 
+	// Update the king position
+	movedPiece := prevState.Moved
+	if movedPiece.PieceType == King {
+		pos.updateKingSquare(movedPiece.Color, Square(move.From))
+	}
+
 	pos.ColorToMove = pos.ColorToMove.opposite()
 }
 
@@ -267,4 +278,20 @@ func (pos *Position) getCastlingRights() (bool, bool, bool, bool) {
 		(pos.CastlingRights&WhiteQueensideRight != 0),
 		(pos.CastlingRights&BlackKingsideRight != 0),
 		(pos.CastlingRights&BlackQueensideRight != 0)
+}
+
+func (pos *Position) GetKingSquare(color Color) Square {
+	if color == White {
+		return pos.WhiteKing
+	}
+	return pos.BlackKing
+}
+
+func (pos *Position) updateKingSquare(Color Color, square Square) {
+	if Color == White {
+		pos.WhiteKing = square
+	} else {
+		pos.BlackKing = square
+	}
+
 }

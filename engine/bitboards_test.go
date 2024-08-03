@@ -1,26 +1,27 @@
 package engine_test
 
 import (
+	"fmt"
 	"tactix/engine"
 	"testing"
 )
 
 func TestBitboardsTests(t *testing.T) {
-	var bb engine.BB
+	var bb engine.Bitboard
 
 	for i := 1; i <= 64; i++ {
 
 		bb.SetBit(engine.Square(i))
 		if !bb.IsBitSet(engine.Square(i)) {
 			t.Error("bit should be set: ", i)
-			bb.Print()
+			fmt.Print(bb.String())
 		}
 
 		bb.ClearBit(engine.Square(i))
 
 		if bb.IsBitSet(engine.Square(i)) {
 			t.Error("bit should be cleared: ", i)
-			bb.Print()
+			fmt.Print(bb.String())
 		}
 	}
 
