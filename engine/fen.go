@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -47,6 +48,7 @@ var PieceToFENChar = map[Color]map[PieceType]rune{
 // Should comply with FEN standard
 func FromFEN(fen string) Position {
 	var pos Position
+	fen = strings.TrimSpace(fen)
 	fenFields := strings.Split(fen, " ")
 
 	if len(fenFields) != 6 {
@@ -115,14 +117,23 @@ func FromFEN(fen string) Position {
 	if fenFields[3][0] == '-' {
 		pos.EPFile = 0
 	} else {
-		pos.EPFile = int8(fenFields[3][0] - '0')
+		pos.EPFile = int8(fenFields[3][0] - 'a' + 1)
 	}
 
 	// halfmove clock
-	pos.Rule50 = int8(fenFields[4][0] - '0')
+	hc, err := strconv.Atoi(fenFields[4])
+	if err != nil {
+		panic("Invalid FEN: halfmove clock.")
+	}
+	pos.Rule50 = int8(hc)
 
-	// Fullmove counter
-	pos.Ply = uint16(fenFields[5][0] - '0')
+	// fullmove counter
+	fmc, err := strconv.Atoi(fenFields[5])
+	if err != nil {
+		panic("Invalid FEN: fullmove counter. \n" + err.Error())
+	}
+
+	pos.Ply = uint16(fmc)
 
 	pos.checkmate = false
 	pos.stalemate = false
@@ -190,11 +201,11 @@ func FEN(pos *Position) string {
 	if pos.EPFile == 0 {
 		fen.WriteRune('-')
 	} else {
-		fen.WriteRune('a' + rune(pos.EPFile))
+		fen.WriteRune('a' + rune(pos.EPFile-1))
 		if pos.ColorToMove == White {
-			fen.WriteRune('3')
-		} else {
 			fen.WriteRune('6')
+		} else {
+			fen.WriteRune('3')
 		}
 	}
 

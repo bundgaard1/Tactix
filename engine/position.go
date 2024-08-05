@@ -41,6 +41,24 @@ const (
 	BlackQueensideRight uint8 = 0x1
 )
 
+func (p PieceType) String() string {
+	switch p {
+	case Pawn:
+		return "Pawn"
+	case Knight:
+		return "Knight"
+	case Bishop:
+		return "Bishop"
+	case Rook:
+		return "Rook"
+	case King:
+		return "King"
+	case Queen:
+		return "Queen"
+	}
+	return "NO PIECE"
+}
+
 func (c Color) String() string {
 	if c == White {
 		return "White"
@@ -62,6 +80,10 @@ func (c Color) opposite() Color {
 type Piece struct {
 	Color
 	PieceType
+}
+
+func (p Piece) String() string {
+	return fmt.Sprintf("%s %s", p.Color.String(), p.PieceType.String())
 }
 
 type State struct {
@@ -101,8 +123,7 @@ func FromStandardStartingPosition() Position {
 func (pos *Position) String() string {
 	var str strings.Builder
 	str.WriteString("---  Position --- \n")
-	str.WriteString(fmt.Sprintf("	CTM: %s \n	EP-file: %d \n 	Ply: %d \n 	50 Rule: %d \n", pos.ColorToMove, pos.EPFile, pos.Ply, pos.Rule50))
-	str.WriteString(fmt.Sprintf(" 	Castling: %s \n", CastelingRightsToString(pos.CastlingRights)))
+	str.WriteString("Fen: " + FEN(pos) + "\n")
 
 	for row := 7; row >= 0; row-- {
 		str.WriteString("+---+---+---+---+---+---+---+---+\n")
@@ -184,31 +205,7 @@ func (pos *Position) MakeMove(move Move) {
 
 	}
 
-	// Moving rook or king removes rights
-	if movedPiece.PieceType == King {
-		if movedPiece.Color == White {
-			pos.CastlingRights &= 0b0011
-		}
-		if movedPiece.Color == Black {
-			pos.CastlingRights &= 0b1100
-		}
-	}
-	if movedPiece.PieceType == Rook {
-		if movedPiece.Color == White {
-			if move.From == 1 {
-				pos.CastlingRights &= 0b1011
-			} else if move.From == 8 {
-				pos.CastlingRights &= 0b0111
-			}
-		}
-		if movedPiece.Color == Black {
-			if move.From == 57 {
-				pos.CastlingRights &= 0b1110
-			} else if move.From == 64 {
-				pos.CastlingRights &= 0b1101
-			}
-		}
-	}
+	pos.updateCastlingRights()
 
 	// Update the king position
 	if movedPiece.PieceType == King {
@@ -220,6 +217,45 @@ func (pos *Position) MakeMove(move Move) {
 
 	pos.ColorToMove = pos.ColorToMove.opposite()
 
+}
+
+func (pos *Position) updateCastlingRights() {
+	wk, wq, bk, bq := pos.getCastlingRights()
+	// Whitekingside
+	if wk &&
+		(pos.Board[5].PieceType == King && pos.Board[5].Color == White) &&
+		(pos.Board[8].PieceType == Rook && pos.Board[8].Color == White) {
+		pos.CastlingRights |= WhiteKingsideRight
+	} else {
+		pos.CastlingRights &= ^WhiteKingsideRight
+	}
+
+	// WhiteQueenside
+	if wq &&
+		(pos.Board[5].PieceType == King && pos.Board[5].Color == White) &&
+		(pos.Board[1].PieceType == Rook && pos.Board[1].Color == White) {
+		pos.CastlingRights |= WhiteQueensideRight
+	} else {
+		pos.CastlingRights &= ^WhiteQueensideRight
+	}
+
+	// Blackkingside
+	if bk &&
+		(pos.Board[61].PieceType == King && pos.Board[61].Color == Black) &&
+		(pos.Board[64].PieceType == Rook && pos.Board[64].Color == Black) {
+		pos.CastlingRights |= BlackKingsideRight
+	} else {
+		pos.CastlingRights &= ^BlackKingsideRight
+	}
+
+	// BlackQueenside
+	if bq &&
+		(pos.Board[61].PieceType == King && pos.Board[61].Color == Black) &&
+		(pos.Board[57].PieceType == Rook && pos.Board[57].Color == Black) {
+		pos.CastlingRights |= BlackQueensideRight
+	} else {
+		pos.CastlingRights &= ^BlackQueensideRight
+	}
 }
 
 func (pos *Position) UndoMove(move Move) {

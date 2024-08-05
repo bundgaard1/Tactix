@@ -77,7 +77,9 @@ func flagForMove(pos *Position, move Move) MoveFlag {
 			if File(move.To) == pos.EPFile {
 				return EnPassentCapture
 			}
-			return PawnPush
+			if Rank(move.To) == Rank(move.From)+2 || Rank(move.To) == Rank(move.From)-2 {
+				return PawnPush
+			}
 		}
 	} else if pos.Board[move.From].PieceType == King {
 		if move.From == E1 && move.To == G1 {

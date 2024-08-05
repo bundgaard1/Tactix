@@ -61,6 +61,8 @@ func (cli *Cli) handleCommand(command string, lexer *Lexer) {
 		fmt.Println(cli.board.String())
 	case "perft":
 		cli.handlePerftCommand(lexer)
+	case "divide":
+		cli.handleDivideCommand(lexer)
 	case "move", "m":
 		cli.handleMoveCommand(lexer)
 	case "fen":
@@ -114,6 +116,22 @@ func (cli *Cli) handlePerftCommand(lexer *Lexer) {
 	fmt.Println("Total nodes: ", nodes)
 }
 
+func (cli *Cli) handleDivideCommand(lexer *Lexer) {
+	depthStr := lexer.GetNextToken()
+
+	depth, err := strconv.Atoi(depthStr.Literal)
+
+	if err != nil {
+		fmt.Println("Invalid depth: '", depthStr.Literal, "'")
+		return
+	}
+
+	summary, nodes := engine.PerftDivided(&cli.board, depth)
+
+	fmt.Println(summary)
+	fmt.Println("Total nodes: ", nodes)
+}
+
 func (cli *Cli) handlePositionCommand(lexer *Lexer) {
 	fenStr := lexer.GetRestOfInput()
 	cli.board = engine.FromFEN(fenStr)
@@ -125,6 +143,7 @@ func (cli *Cli) handleHelpCommand() {
 	fmt.Println("	print - Print the current board")
 	fmt.Println("	move <move> - Make a move")
 	fmt.Println("	perft <depth> - Run perft to a certain depth")
+	fmt.Println("	divide <depth> - Run perft to a certain depth and divide")
 	fmt.Println("	fen - Print the board from a fen string")
 	fmt.Println("	position <fen> - Set the board to a fen string")
 	fmt.Println("	help - Print this help message")

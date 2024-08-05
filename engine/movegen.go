@@ -1,21 +1,18 @@
 package engine
 
-// ------- NAIVE SOLUTION --------
-// Very Slow
 func GetValidMoves(pos *Position) MoveList {
-
 	var legalMoves MoveList
 	checks := numChecks(pos)
 	if checks > 0 {
 		if checks == 1 { // One check, Move the king to a safe square, or block the attack
-			allMoves := GetAllPossibleMoves(pos)
+			allMoves := filterMovesToLegal(pos, GetAllPossibleMoves(pos))
 
 			kingSquare := pos.GetKingSquare(pos.ColorToMove)
 			KingAttackedLine := BBKingAttackedMask(pos)
 
 			for i := 0; i < allMoves.Count; i++ {
 				move := allMoves.Moves[i]
-				if move.To == kingSquare {
+				if move.From == kingSquare {
 					// King moves should
 					legalMoves.AddMove(move)
 				} else {
@@ -26,12 +23,14 @@ func GetValidMoves(pos *Position) MoveList {
 				}
 			}
 		} else { // Two or more checks,Move the king to a safe square
-			kingMoves := genKingMoves(pos, pos.GetKingSquare(pos.ColorToMove), pos.Board[pos.GetKingSquare(pos.ColorToMove)], true)
-			legalMoves.AddMoves(kingMoves)
+			kingMoves := genKingMoves(pos, pos.GetKingSquare(pos.ColorToMove), pos.Board[pos.GetKingSquare(pos.ColorToMove)])
+			legalKingMoves := filterMovesToLegal(pos, kingMoves)
+			legalMoves.AddMoves(legalKingMoves)
 		}
 
 	} else {
-		legalMoves.AddMoves(GetAllPossibleMoves(pos))
+		allMoves := GetAllPossibleMoves(pos)
+		legalMoves.AddMoves(filterMovesToLegal(pos, allMoves))
 		legalMoves.AddMoves(genCastlingMoves(pos, pos.GetKingSquare(pos.ColorToMove), pos.Board[pos.GetKingSquare(pos.ColorToMove)]))
 	}
 
@@ -47,6 +46,39 @@ func GetValidMoves(pos *Position) MoveList {
 	}
 
 	return legalMoves
+}
+
+func filterMovesToLegal(pos *Position, moves MoveList) MoveList {
+
+	var legalMoves MoveList
+
+	for i := 0; i < moves.Count; i++ {
+		if isMoveLegal(pos, moves.Moves[i]) {
+			legalMoves.AddMove(moves.Moves[i])
+		}
+	}
+
+	return legalMoves
+
+}
+
+// Check for if move is involved in pin, or a king moves onto attacked square.
+func isMoveLegal(pos *Position, move Move) bool {
+	piece := pos.Board[move.From]
+
+	if piece.Color != pos.ColorToMove {
+		return false
+	}
+	// Pinned Piece
+	if piece.PieceType != King && BBPinnedSquares(pos).IsBitSet(move.From) && !BBPinnedSquares(pos).IsBitSet(move.To) {
+		return false
+	}
+	// King cant move to attacked square
+	if piece.PieceType == King && BBSquaresUnderAttack(pos).IsBitSet(move.To) {
+		return false
+	}
+
+	return true
 }
 
 // All Posible Moves, does check for pins.
@@ -69,7 +101,7 @@ func GetAllPossibleMoves(pos *Position) MoveList {
 		case Bishop, Queen, Rook:
 			moves.AddMoves(genSlidingMoves(pos, sq, currPiece))
 		case King:
-			moves.AddMoves(genKingMoves(pos, sq, currPiece, true))
+			moves.AddMoves(genKingMoves(pos, sq, currPiece))
 		default:
 			continue
 		}
@@ -80,58 +112,74 @@ func GetAllPossibleMoves(pos *Position) MoveList {
 
 func genPawnMoves(pos *Position, square Square, piece Piece) MoveList {
 	var pawnMoveList MoveList
-	var offset Square
+	var pawnDirection Square
 	if piece.Color == White {
-		offset = 8
+		pawnDirection = 8
 	} else {
-		offset = -8
-	}
-
-	if BBPinnedSquares(pos).IsBitSet(square) {
-		return pawnMoveList
+		pawnDirection = -8
 	}
 
 	// Move forward
-	if pos.Board[square+offset].PieceType == NoPiece {
-		pawnMoveList.AddMove(Move{From: square, To: square + offset, Flag: NoFlag})
+	if pos.Board[square+pawnDirection].PieceType == NoPiece {
+		pawnMoveList.AddMove(Move{From: square, To: square + pawnDirection, Flag: NoFlag})
 	}
 
 	// Push
-	push := square + 2*offset
+	push := square + 2*pawnDirection
 	if ((piece.Color == White && Rank(square) == 2) ||
-		(piece.Color == Black && Rank(square) == 7)) && pos.Board[square+offset].PieceType|pos.Board[push].PieceType == NoPiece {
+		(piece.Color == Black && Rank(square) == 7)) && pos.Board[square+pawnDirection].PieceType|pos.Board[push].PieceType == NoPiece {
 		pawnMoveList.AddMove(Move{From: square, To: push, Flag: PawnPush})
 	}
 
 	// Attack
-	if File(square) != 1 && pos.Board[square+offset-1].PieceType != NoPiece && pos.Board[square+offset-1].Color != piece.Color {
-		pawnMoveList.AddMove(Move{From: square, To: square + offset - 1, Flag: NoFlag})
-	}
-	if File(square) != 8 && pos.Board[square+offset+1].PieceType != NoPiece && pos.Board[square+offset+1].Color != piece.Color {
-		pawnMoveList.AddMove(Move{From: square, To: square + offset + 1, Flag: NoFlag})
+	attackMoves := genPawnAttackMoves(pos, square, piece)
+	for i := 0; i < attackMoves.Count; i++ {
+		if pos.Board[attackMoves.Moves[i].To].Color == piece.Color.opposite() {
+			pawnMoveList.AddMove(attackMoves.Moves[i])
+		}
 	}
 
-	// Promotion
+	// Promotion - If we are at the end of the board, add all possible promotions
 	if (Rank(square) == 7 && piece.Color == White) || (Rank(square) == 2 && piece.Color == Black) {
 		var countBefore int = pawnMoveList.Count
-
 		for i := 0; i < countBefore; i++ {
+			to := pawnMoveList.Moves[i].To
 			pawnMoveList.Moves[i].Flag = PromotionToQueen
-			var to Square = pawnMoveList.Moves[i].To
 			pawnMoveList.AddMove(Move{square, to, PromotionToBishop})
-			pawnMoveList.AddMove(Move{square, to, PromotionToQueen})
 			pawnMoveList.AddMove(Move{square, to, PromotionToKnight})
 			pawnMoveList.AddMove(Move{square, to, PromotionToRook})
 		}
 	}
 
+	// En passent
 	if pos.EPFile != 0 && ((Rank(square) == 5 && piece.Color == White) || (Rank(square) == 4 && piece.Color == Black)) {
 		if File(square)-1 == pos.EPFile {
-			pawnMoveList.AddMove(Move{From: square, To: square + offset - 1, Flag: EnPassentCapture})
+			pawnMoveList.AddMove(Move{From: square, To: square + pawnDirection - 1, Flag: EnPassentCapture})
 		}
 		if File(square)+1 == pos.EPFile {
-			pawnMoveList.AddMove(Move{From: square, To: square + offset + 1, Flag: EnPassentCapture})
+			pawnMoveList.AddMove(Move{From: square, To: square + pawnDirection + 1, Flag: EnPassentCapture})
 		}
+	}
+
+	return pawnMoveList
+}
+
+// Does not check for promotion or if the attack has a target
+func genPawnAttackMoves(pos *Position, square Square, piece Piece) MoveList {
+	var pawnMoveList MoveList
+	var pawnDirection Square
+	if piece.Color == White {
+		pawnDirection = 8
+	} else {
+		pawnDirection = -8
+	}
+
+	// Attack
+	if File(square) != 1 {
+		pawnMoveList.AddMove(Move{From: square, To: square + pawnDirection - 1, Flag: NoFlag})
+	}
+	if File(square) != 8 {
+		pawnMoveList.AddMove(Move{From: square, To: square + pawnDirection + 1, Flag: NoFlag})
 	}
 
 	return pawnMoveList
@@ -140,10 +188,6 @@ func genPawnMoves(pos *Position, square Square, piece Piece) MoveList {
 var knightMoveOffsets = [8]Square{-17, -15, -10, -6, 6, 10, 15, 17}
 
 func genKnightMoves(pos *Position, square Square, piece Piece) MoveList {
-
-	if BBPinnedSquares(pos).IsBitSet(square) {
-		return MoveList{}
-	}
 
 	var allowedMoves uint8 = 0b1111_1111
 	switch Rank(square) {
@@ -210,12 +254,6 @@ func genSlidingMoves(pos *Position, square Square, piece Piece) MoveList {
 
 	var slidingMoveList MoveList
 
-	pinnedSquares := BBPinnedSquares(pos)
-	pinned := false
-	if pinnedSquares.IsBitSet(square) {
-		pinned = true
-	}
-
 	dirStartIndex, dirEndIndex := slidingStartAndEndIndex(piece.PieceType)
 
 	for dirIndex := dirStartIndex; dirIndex < dirEndIndex; dirIndex++ {
@@ -225,12 +263,6 @@ func genSlidingMoves(pos *Position, square Square, piece Piece) MoveList {
 			toColor := pos.Board[to].Color
 			if toColor == piece.Color {
 				break
-			}
-
-			if pinned {
-				if !pinnedSquares.IsBitSet(to) {
-					break
-				}
 			}
 
 			slidingMoveList.AddMove(Move{From: square, To: to, Flag: NoFlag})
@@ -254,16 +286,12 @@ func slidingStartAndEndIndex(pieceType PieceType) (Square, Square) {
 	return 0, 8
 }
 
-func genKingMoves(pos *Position, square Square, piece Piece, checkAttacked bool) MoveList {
+func genKingMoves(pos *Position, square Square, piece Piece) MoveList {
 	if !SqToEdgeComputed {
 		computeSquaresToEdge()
 	}
 
 	var kingMoveList MoveList
-	var attackedMask Bitboard
-	if checkAttacked {
-		attackedMask = BBSquaresUnderAttack(pos)
-	}
 
 	// Moving
 	for dirIndex := 0; dirIndex < 8; dirIndex++ {
@@ -275,10 +303,6 @@ func genKingMoves(pos *Position, square Square, piece Piece, checkAttacked bool)
 		pieceOnTo := pos.Board[to]
 
 		if pieceOnTo.Color == piece.Color {
-			continue
-		}
-
-		if attackedMask.IsBitSet(to) {
 			continue
 		}
 
@@ -342,11 +366,13 @@ func numChecks(pos *Position) int {
 }
 
 // enemy pieces can also be "Under attack", which makes them not accessable by the king.
+// We do this by removing the king from the board, and then generating all possible moves for the enemy pieces.
 func BBSquaresUnderAttack(pos *Position) Bitboard {
 	if !SqToEdgeComputed {
 		computeSquaresToEdge()
 	}
 
+	pos.Board[pos.GetKingSquare(pos.ColorToMove)] = Piece{NoColor, NoPiece} // Remove the king from the board
 	pos.ColorToMove = pos.ColorToMove.opposite()
 	var opponentMoves MoveList
 	for sq := Square(1); sq <= 64; sq++ {
@@ -357,19 +383,20 @@ func BBSquaresUnderAttack(pos *Position) Bitboard {
 
 		switch currPiece.PieceType {
 		case Pawn:
-			opponentMoves.AddMoves(genPawnMoves(pos, sq, currPiece))
+			opponentMoves.AddMoves(genPawnAttackMoves(pos, sq, currPiece))
 		case Knight:
 			opponentMoves.AddMoves(genKnightMoves(pos, sq, currPiece))
 		case Bishop, Queen, Rook:
 			opponentMoves.AddMoves(genSlidingMoves(pos, sq, currPiece))
 		case King:
-			opponentMoves.AddMoves(genKingMoves(pos, sq, currPiece, false))
+			opponentMoves.AddMoves(genKingMoves(pos, sq, currPiece))
 		default:
 			continue
 		}
 
 	}
 	pos.ColorToMove = pos.ColorToMove.opposite()
+	pos.Board[pos.GetKingSquare(pos.ColorToMove)] = Piece{pos.ColorToMove, King} // Add the king back to the board
 
 	var attackedSquares Bitboard
 
@@ -451,45 +478,75 @@ func BBPinnedSquares(pos *Position) Bitboard {
 
 	// Go though each enemy piece, and check if it is attacking the king and counting how many pieces are blicking its attack,
 	// if there is only one piece blocking the attack, then it is pinned.
+	// If there is a enpassent,
 
 	for sq := Square(1); sq <= 64; sq++ {
 		currPiece := pos.Board[sq]
 
-		if currPiece.PieceType == NoPiece || currPiece.Color == pos.ColorToMove || currPiece.PieceType == Pawn {
+		if currPiece.PieceType == NoPiece || currPiece.Color == pos.ColorToMove || currPiece.PieceType == Pawn || currPiece.PieceType == Knight || currPiece.PieceType == King {
 			continue
 		}
 
 		dirStartIndex, dirEndIndex := slidingStartAndEndIndex(currPiece.PieceType)
+		isEnPassantRelevant := pos.EPFile != 0 && dirStartIndex == 0 && ((Rank(sq) == 5 && currPiece.Color == Black) || (Rank(sq) == 4 && currPiece.Color == White)) && Rank(pos.GetKingSquare(pos.ColorToMove)) == Rank(sq)
 
 		for dirIndex := dirStartIndex; dirIndex < dirEndIndex; dirIndex++ {
 			piecesGoneThrough := 0
+			whiteAndBlackPawnNextToEachOther := 0
 
-			for i := int8(0); i < numSquaresToEdge[sq][dirIndex]; i++ {
-				to := sq + directionOffsets[dirIndex]*Square(i+1)
+			for i := int8(1); i <= numSquaresToEdge[sq][dirIndex]; i++ {
+				to := sq + directionOffsets[dirIndex]*Square(i)
 
-				toColor := pos.Board[to].Color
-				if toColor == currPiece.Color {
-					break
-				}
+				if !isEnPassantRelevant { // Normal sliding moves
 
-				if pos.GetKingSquare(pos.ColorToMove) == to && piecesGoneThrough == 1 {
-					// Set all the previous squares to a pinned square
-					for j := int8(0); j <= i; j++ {
-						pinnedSquares.SetBit(sq + directionOffsets[dirIndex]*Square(j+1))
-					}
-					pinnedSquares.SetBit(sq)
-					break
-				}
-				if toColor == currPiece.Color.opposite() {
-					if piecesGoneThrough == 1 {
+					toColor := pos.Board[to].Color
+					if toColor == currPiece.Color {
 						break
-					} else {
-						piecesGoneThrough++
+					}
+
+					if pos.GetKingSquare(pos.ColorToMove) == to && piecesGoneThrough == 1 {
+						// Set all the previous squares to a pinned square
+						for j := int8(1); j < i; j++ {
+							pinnedSquares.SetBit(sq + directionOffsets[dirIndex]*Square(j))
+						}
+						pinnedSquares.SetBit(sq)
+						break
+					}
+					if toColor == currPiece.Color.opposite() {
+						if piecesGoneThrough == 1 {
+							break
+						} else {
+							piecesGoneThrough++
+						}
+					}
+				} else { // En passant relevant
+					// We have to check that there is exacly a white pawn and a black pawn on the same rank next to each other
+
+					if pos.Board[to].PieceType == Pawn {
+						nextSquare := to + directionOffsets[dirIndex]
+						if pos.Board[nextSquare].PieceType == Pawn && pos.Board[nextSquare].Color != pos.Board[to].Color {
+							whiteAndBlackPawnNextToEachOther = int(nextSquare)
+							i++ // Skip the next square, because there is a pawn there, we know
+						}
+					} else if pos.GetKingSquare(pos.ColorToMove) == to && whiteAndBlackPawnNextToEachOther != 0 {
+						// Set all the previous squares to a pinned square
+						for j := int8(1); j < i; j++ {
+							pinnedSquares.SetBit(sq + directionOffsets[dirIndex]*Square(j))
+						}
+
+						if pos.ColorToMove == White {
+							pinnedSquares.SetBit(Square(whiteAndBlackPawnNextToEachOther + 8))
+						} else {
+							pinnedSquares.SetBit(Square(whiteAndBlackPawnNextToEachOther - 8))
+						}
+
+						break
+					} else if pos.Board[to].PieceType != NoPiece {
+						break
 					}
 				}
 
 			}
-
 		}
 
 	}
