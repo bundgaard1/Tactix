@@ -88,6 +88,10 @@ type Position struct {
 	// Kings position
 	WhiteKing Square
 	BlackKing Square
+
+	// finished state
+	checkmate bool
+	stalemate bool
 }
 
 func FromStandardStartingPosition() Position {

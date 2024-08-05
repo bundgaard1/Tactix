@@ -12,7 +12,7 @@ func main() {
 
 	fmt.Print(Position.String())
 
-	bb := engine.BBPinnedSquares(&Position)
+	bb := engine.BBKingAttackedMask(&Position)
 
 	fmt.Print(bb.StringOnBoard())
 }

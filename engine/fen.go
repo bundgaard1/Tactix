@@ -124,6 +124,9 @@ func FromFEN(fen string) Position {
 	// Fullmove counter
 	pos.Ply = uint16(fenFields[5][0] - '0')
 
+	pos.checkmate = false
+	pos.stalemate = false
+
 	return pos
 }
 

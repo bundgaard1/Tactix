@@ -21,3 +21,10 @@ func (moveList *MoveList) AddMoves(appendList MoveList) {
 		moveList.AddMove(appendList.Moves[i])
 	}
 }
+
+func (MoveList *MoveList) Remove(index int) {
+	if index < MoveList.Count {
+		MoveList.Moves[index] = MoveList.Moves[MoveList.Count-1]
+		MoveList.Count--
+	}
+}

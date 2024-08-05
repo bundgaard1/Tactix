@@ -5,19 +5,51 @@ package engine
 func GetValidMoves(pos *Position) MoveList {
 
 	var legalMoves MoveList
+	checks := numChecks(pos)
+	if checks > 0 {
+		if checks == 1 { // One check, Move the king to a safe square, or block the attack
+			allMoves := GetAllPossibleMoves(pos)
 
-	// 1. Bitboard for Attacking squares for enemy pieces
-	// attackedSquaresMask := BBSquaresUnderAttack(pos)
+			kingSquare := pos.GetKingSquare(pos.ColorToMove)
+			KingAttackedLine := BBKingAttackedMask(pos)
 
-	// 2. Bitboard for Lines of pined pieces
-	// pinnedSquaresMask := BBPinnedSquares(pos)
-	if inCheck(pos) {
+			for i := 0; i < allMoves.Count; i++ {
+				move := allMoves.Moves[i]
+				if move.To == kingSquare {
+					// King moves should
+					legalMoves.AddMove(move)
+				} else {
+					// Block the attack
+					if KingAttackedLine.IsBitSet(move.To) {
+						legalMoves.AddMove(move)
+					}
+				}
+			}
+		} else { // Two or more checks,Move the king to a safe square
+			kingMoves := genKingMoves(pos, pos.GetKingSquare(pos.ColorToMove), pos.Board[pos.GetKingSquare(pos.ColorToMove)], true)
+			legalMoves.AddMoves(kingMoves)
+		}
+
+	} else {
+		legalMoves.AddMoves(GetAllPossibleMoves(pos))
+		legalMoves.AddMoves(genCastlingMoves(pos, pos.GetKingSquare(pos.ColorToMove), pos.Board[pos.GetKingSquare(pos.ColorToMove)]))
+	}
+
+	if legalMoves.Count == 0 {
+		if checks > 0 {
+			pos.checkmate = true
+		} else {
+			pos.stalemate = true
+		}
+	} else {
+		pos.checkmate = false
+		pos.stalemate = false
 	}
 
 	return legalMoves
 }
 
-// All Posible Moves without checking if they are legal
+// All Posible Moves, does check for pins.
 // No castling.
 func GetAllPossibleMoves(pos *Position) MoveList {
 
@@ -37,7 +69,7 @@ func GetAllPossibleMoves(pos *Position) MoveList {
 		case Bishop, Queen, Rook:
 			moves.AddMoves(genSlidingMoves(pos, sq, currPiece))
 		case King:
-			moves.AddMoves(genKingMoves(pos, sq, currPiece))
+			moves.AddMoves(genKingMoves(pos, sq, currPiece, true))
 		default:
 			continue
 		}
@@ -53,6 +85,10 @@ func genPawnMoves(pos *Position, square Square, piece Piece) MoveList {
 		offset = 8
 	} else {
 		offset = -8
+	}
+
+	if BBPinnedSquares(pos).IsBitSet(square) {
+		return pawnMoveList
 	}
 
 	// Move forward
@@ -104,6 +140,10 @@ func genPawnMoves(pos *Position, square Square, piece Piece) MoveList {
 var knightMoveOffsets = [8]Square{-17, -15, -10, -6, 6, 10, 15, 17}
 
 func genKnightMoves(pos *Position, square Square, piece Piece) MoveList {
+
+	if BBPinnedSquares(pos).IsBitSet(square) {
+		return MoveList{}
+	}
 
 	var allowedMoves uint8 = 0b1111_1111
 	switch Rank(square) {
@@ -170,15 +210,27 @@ func genSlidingMoves(pos *Position, square Square, piece Piece) MoveList {
 
 	var slidingMoveList MoveList
 
+	pinnedSquares := BBPinnedSquares(pos)
+	pinned := false
+	if pinnedSquares.IsBitSet(square) {
+		pinned = true
+	}
+
 	dirStartIndex, dirEndIndex := slidingStartAndEndIndex(piece.PieceType)
 
 	for dirIndex := dirStartIndex; dirIndex < dirEndIndex; dirIndex++ {
-		for i := int8(0); i < numSquaresToEdge[square][dirIndex]; i++ {
-			to := square + directionOffsets[dirIndex]*Square(i+1)
+		for i := int8(1); i <= numSquaresToEdge[square][dirIndex]; i++ {
+			to := square + directionOffsets[dirIndex]*Square(i)
 
 			toColor := pos.Board[to].Color
 			if toColor == piece.Color {
 				break
+			}
+
+			if pinned {
+				if !pinnedSquares.IsBitSet(to) {
+					break
+				}
 			}
 
 			slidingMoveList.AddMove(Move{From: square, To: to, Flag: NoFlag})
@@ -202,12 +254,16 @@ func slidingStartAndEndIndex(pieceType PieceType) (Square, Square) {
 	return 0, 8
 }
 
-func genKingMoves(pos *Position, square Square, piece Piece) MoveList {
+func genKingMoves(pos *Position, square Square, piece Piece, checkAttacked bool) MoveList {
 	if !SqToEdgeComputed {
 		computeSquaresToEdge()
 	}
 
 	var kingMoveList MoveList
+	var attackedMask Bitboard
+	if checkAttacked {
+		attackedMask = BBSquaresUnderAttack(pos)
+	}
 
 	// Moving
 	for dirIndex := 0; dirIndex < 8; dirIndex++ {
@@ -221,6 +277,11 @@ func genKingMoves(pos *Position, square Square, piece Piece) MoveList {
 		if pieceOnTo.Color == piece.Color {
 			continue
 		}
+
+		if attackedMask.IsBitSet(to) {
+			continue
+		}
+
 		kingMoveList.AddMove(Move{From: square, To: to, Flag: NoFlag})
 	}
 
@@ -260,9 +321,24 @@ func genCastlingMoves(pos *Position, square Square, piece Piece) MoveList {
 	return castlingMoves
 }
 
-func inCheck(pos *Position) bool {
-	kingSquare := pos.GetKingSquare(pos.ColorToMove)
-	return squareUnderAttack(pos, kingSquare)
+func numChecks(pos *Position) int {
+	if !SqToEdgeComputed {
+		computeSquaresToEdge()
+	}
+	kingSqaure := pos.GetKingSquare(pos.ColorToMove)
+
+	pos.ColorToMove = pos.ColorToMove.opposite()
+	opponentMoves := GetAllPossibleMoves(pos)
+	pos.ColorToMove = pos.ColorToMove.opposite()
+
+	count := 0
+
+	for i := 0; i < opponentMoves.Count; i++ {
+		if opponentMoves.Moves[i].To == kingSqaure {
+			count++
+		}
+	}
+	return count
 }
 
 // enemy pieces can also be "Under attack", which makes them not accessable by the king.
@@ -271,11 +347,31 @@ func BBSquaresUnderAttack(pos *Position) Bitboard {
 		computeSquaresToEdge()
 	}
 
-	var attackedSquares Bitboard
+	pos.ColorToMove = pos.ColorToMove.opposite()
+	var opponentMoves MoveList
+	for sq := Square(1); sq <= 64; sq++ {
+		currPiece := pos.Board[sq]
+		if currPiece.Color != pos.ColorToMove {
+			continue
+		}
 
+		switch currPiece.PieceType {
+		case Pawn:
+			opponentMoves.AddMoves(genPawnMoves(pos, sq, currPiece))
+		case Knight:
+			opponentMoves.AddMoves(genKnightMoves(pos, sq, currPiece))
+		case Bishop, Queen, Rook:
+			opponentMoves.AddMoves(genSlidingMoves(pos, sq, currPiece))
+		case King:
+			opponentMoves.AddMoves(genKingMoves(pos, sq, currPiece, false))
+		default:
+			continue
+		}
+
+	}
 	pos.ColorToMove = pos.ColorToMove.opposite()
-	opponentMoves := GetAllPossibleMoves(pos)
-	pos.ColorToMove = pos.ColorToMove.opposite()
+
+	var attackedSquares Bitboard
 
 	for i := 0; i < opponentMoves.Count; i++ {
 		move := opponentMoves.Moves[i]
@@ -287,6 +383,62 @@ func BBSquaresUnderAttack(pos *Position) Bitboard {
 			attackedSquares.SetBit(opponentMoves.Moves[i].To)
 		}
 	}
+	return attackedSquares
+}
+
+func BBKingAttackedMask(pos *Position) Bitboard {
+	if !SqToEdgeComputed {
+		computeSquaresToEdge()
+	}
+
+	var attackedSquares Bitboard
+
+	pos.ColorToMove = pos.ColorToMove.opposite()
+	opponentMoves := GetAllPossibleMoves(pos)
+	pos.ColorToMove = pos.ColorToMove.opposite()
+
+	// Figure out the attacker
+	var attackerSquare Square = 0
+
+	for i := 0; i < opponentMoves.Count; i++ {
+		if pos.Board[opponentMoves.Moves[i].To].PieceType == King {
+			attackerSquare = opponentMoves.Moves[i].From
+		}
+	}
+
+	if attackerSquare == 0 {
+		return attackedSquares
+	}
+
+	attackedSquares.SetBit(attackerSquare)
+
+	currPiece := pos.Board[attackerSquare]
+
+	if currPiece.PieceType == Pawn || currPiece.PieceType == Knight {
+		return attackedSquares
+	}
+
+	// Figure out the path to the king
+	dirStartIndex, dirEndIndex := slidingStartAndEndIndex(currPiece.PieceType)
+
+	for dirIndex := dirStartIndex; dirIndex < dirEndIndex; dirIndex++ {
+		found := false
+		for i := int8(1); i <= numSquaresToEdge[attackerSquare][dirIndex]; i++ {
+			to := attackerSquare + directionOffsets[dirIndex]*Square(i)
+
+			if to == pos.GetKingSquare(pos.ColorToMove) {
+				found = true
+				for j := int8(1); j < i; j++ {
+					attackedSquares.SetBit(attackerSquare + directionOffsets[dirIndex]*Square(j))
+				}
+			}
+
+		}
+		if found {
+			break
+		}
+	}
+
 	return attackedSquares
 }
 
