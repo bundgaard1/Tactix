@@ -44,28 +44,28 @@ const (
 func (p PieceType) String() string {
 	switch p {
 	case Pawn:
-		return "Pawn"
+		return "P"
 	case Knight:
-		return "Knight"
+		return "N"
 	case Bishop:
-		return "Bishop"
+		return "B"
 	case Rook:
-		return "Rook"
+		return "R"
 	case King:
-		return "King"
+		return "K"
 	case Queen:
-		return "Queen"
+		return "Q"
 	}
 	return "NO PIECE"
 }
 
 func (c Color) String() string {
 	if c == White {
-		return "White"
+		return "W"
 	} else if c == Black {
-		return "Black"
+		return "B"
 	}
-	return "NO COLOR"
+	return "X"
 }
 
 func (c Color) opposite() Color {
@@ -83,7 +83,7 @@ type Piece struct {
 }
 
 func (p Piece) String() string {
-	return fmt.Sprintf("%s %s", p.Color.String(), p.PieceType.String())
+	return fmt.Sprintf("%s-%s", p.Color.String(), p.PieceType.String())
 }
 
 type State struct {
@@ -91,7 +91,8 @@ type State struct {
 	CastlingRights uint8
 	Moved          Piece
 	Captured       Piece
-	StatePly       uint16
+	Rule50         int8
+	Ply            uint16
 }
 
 type Position struct {
@@ -153,7 +154,8 @@ func (pos *Position) MakeMove(move Move) {
 		CastlingRights: pos.CastlingRights,
 		Moved:          movedPiece,
 		Captured:       capturedPiece,
-		StatePly:       pos.Ply,
+		Rule50:         pos.Rule50,
+		Ply:            pos.Ply,
 	}
 
 	// Move the piece
@@ -161,6 +163,12 @@ func (pos *Position) MakeMove(move Move) {
 	pos.Board[move.From] = Piece{NoColor, NoPiece}
 
 	pos.EPFile = 0
+
+	// Rule 50
+	pos.Rule50++
+	if capturedPiece.PieceType != NoPiece || movedPiece.PieceType == Pawn {
+		pos.Rule50 = 0
+	}
 
 	switch move.Flag {
 	case PawnPush:
@@ -263,6 +271,7 @@ func (pos *Position) UndoMove(move Move) {
 	prevState := pos.prevStates[pos.Ply]
 
 	pos.EPFile = prevState.EPFile
+	pos.Rule50 = prevState.Rule50
 	pos.CastlingRights = prevState.CastlingRights
 
 	pos.Board[move.From] = prevState.Moved
@@ -334,4 +343,8 @@ func (pos *Position) updateKingSquare(Color Color, square Square) {
 		pos.BlackKing = square
 	}
 
+}
+
+func (pos *Position) FlipColor() {
+	pos.ColorToMove = pos.ColorToMove.opposite()
 }

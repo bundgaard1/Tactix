@@ -51,7 +51,7 @@ func FromFEN(fen string) Position {
 	fen = strings.TrimSpace(fen)
 	fenFields := strings.Split(fen, " ")
 
-	if len(fenFields) != 6 {
+	if len(fenFields) < 4 {
 		panic("Not 6 fields in FEN-string, got " + fmt.Sprint(len(fenFields)))
 	}
 
@@ -121,19 +121,26 @@ func FromFEN(fen string) Position {
 	}
 
 	// halfmove clock
-	hc, err := strconv.Atoi(fenFields[4])
-	if err != nil {
-		panic("Invalid FEN: halfmove clock.")
+	if len(fenFields) > 4 {
+		hc, err := strconv.Atoi(fenFields[4])
+		if err != nil {
+			panic("Invalid FEN: halfmove clock.")
+		}
+		pos.Rule50 = int8(hc)
+	} else {
+		pos.Rule50 = 0
 	}
-	pos.Rule50 = int8(hc)
 
 	// fullmove counter
-	fmc, err := strconv.Atoi(fenFields[5])
-	if err != nil {
-		panic("Invalid FEN: fullmove counter. \n" + err.Error())
+	if len(fenFields) > 5 {
+		fmc, err := strconv.Atoi(fenFields[5])
+		if err != nil {
+			panic("Invalid FEN: fullmove counter. \n" + err.Error())
+		}
+		pos.Ply = uint16(fmc)
+	} else {
+		pos.Ply = 1
 	}
-
-	pos.Ply = uint16(fmc)
 
 	pos.checkmate = false
 	pos.stalemate = false
