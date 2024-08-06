@@ -172,6 +172,15 @@ func genPawnMoves(pos *Position, square Square, piece Piece) MoveList {
 		}
 	}
 
+	// En passent
+	if pos.EPFile != 0 && ((Rank(square) == 5 && piece.Color == White) || (Rank(square) == 4 && piece.Color == Black)) {
+		if File(square)-1 == pos.EPFile {
+			pawnMoveList.AddMove(Move{From: square, To: square + pawnDirection - 1, Flag: EnPassentCapture})
+		}
+		if File(square)+1 == pos.EPFile {
+			pawnMoveList.AddMove(Move{From: square, To: square + pawnDirection + 1, Flag: EnPassentCapture})
+		}
+	}
 	// Promotion - If we are at the end of the board, add all possible promotions
 	if (Rank(square) == 7 && piece.Color == White) || (Rank(square) == 2 && piece.Color == Black) {
 		var countBefore int = pawnMoveList.Count
@@ -181,16 +190,6 @@ func genPawnMoves(pos *Position, square Square, piece Piece) MoveList {
 			pawnMoveList.AddMove(Move{square, to, PromotionToBishop})
 			pawnMoveList.AddMove(Move{square, to, PromotionToKnight})
 			pawnMoveList.AddMove(Move{square, to, PromotionToRook})
-		}
-	}
-
-	// En passent
-	if pos.EPFile != 0 && ((Rank(square) == 5 && piece.Color == White) || (Rank(square) == 4 && piece.Color == Black)) {
-		if File(square)-1 == pos.EPFile {
-			pawnMoveList.AddMove(Move{From: square, To: square + pawnDirection - 1, Flag: EnPassentCapture})
-		}
-		if File(square)+1 == pos.EPFile {
-			pawnMoveList.AddMove(Move{From: square, To: square + pawnDirection + 1, Flag: EnPassentCapture})
 		}
 	}
 

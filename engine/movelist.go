@@ -1,6 +1,6 @@
 package engine
 
-const maxMoveList = 255
+const maxMoveList = 218
 
 type MoveList struct {
 	Moves [maxMoveList]Move

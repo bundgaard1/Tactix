@@ -86,6 +86,10 @@ func (p Piece) String() string {
 	return fmt.Sprintf("%s-%s", p.Color.String(), p.PieceType.String())
 }
 
+func (p Piece) Equal(other Piece) bool {
+	return p.Color == other.Color && p.PieceType == other.PieceType
+}
+
 type State struct {
 	EPFile         int8
 	CastlingRights uint8
@@ -231,8 +235,8 @@ func (pos *Position) updateCastlingRights() {
 	wk, wq, bk, bq := pos.getCastlingRights()
 	// Whitekingside
 	if wk &&
-		(pos.Board[5].PieceType == King && pos.Board[5].Color == White) &&
-		(pos.Board[8].PieceType == Rook && pos.Board[8].Color == White) {
+		(pos.Board[5].Equal(Piece{White, King})) &&
+		(pos.Board[8].Equal(Piece{White, Rook})) {
 		pos.CastlingRights |= WhiteKingsideRight
 	} else {
 		pos.CastlingRights &= ^WhiteKingsideRight
@@ -240,8 +244,8 @@ func (pos *Position) updateCastlingRights() {
 
 	// WhiteQueenside
 	if wq &&
-		(pos.Board[5].PieceType == King && pos.Board[5].Color == White) &&
-		(pos.Board[1].PieceType == Rook && pos.Board[1].Color == White) {
+		(pos.Board[5].Equal(Piece{White, King})) &&
+		(pos.Board[1].Equal(Piece{White, Rook})) {
 		pos.CastlingRights |= WhiteQueensideRight
 	} else {
 		pos.CastlingRights &= ^WhiteQueensideRight
@@ -249,8 +253,8 @@ func (pos *Position) updateCastlingRights() {
 
 	// Blackkingside
 	if bk &&
-		(pos.Board[61].PieceType == King && pos.Board[61].Color == Black) &&
-		(pos.Board[64].PieceType == Rook && pos.Board[64].Color == Black) {
+		(pos.Board[61].Equal(Piece{Black, King})) &&
+		(pos.Board[64].Equal(Piece{Black, Rook})) {
 		pos.CastlingRights |= BlackKingsideRight
 	} else {
 		pos.CastlingRights &= ^BlackKingsideRight
@@ -258,8 +262,8 @@ func (pos *Position) updateCastlingRights() {
 
 	// BlackQueenside
 	if bq &&
-		(pos.Board[61].PieceType == King && pos.Board[61].Color == Black) &&
-		(pos.Board[57].PieceType == Rook && pos.Board[57].Color == Black) {
+		(pos.Board[61].Equal(Piece{Black, King})) &&
+		(pos.Board[57].Equal(Piece{Black, Rook})) {
 		pos.CastlingRights |= BlackQueensideRight
 	} else {
 		pos.CastlingRights &= ^BlackQueensideRight
