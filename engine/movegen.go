@@ -13,11 +13,16 @@ func GetValidMoves(pos *Position) MoveList {
 			for i := 0; i < allMoves.Count; i++ {
 				move := allMoves.Moves[i]
 				if move.From == kingSquare {
-					// King moves should
+					// King moves should be filtered from filterMovesToLegal
 					legalMoves.AddMove(move)
 				} else {
-					// Block the attack
+					// Block the attack/ Capture the attacking piece, There is a bug with en passent here
 					if KingAttackedLine.IsBitSet(move.To) {
+						legalMoves.AddMove(move)
+					}
+					// En passent check, very disgusting.
+					if move.Flag == EnPassentCapture && pos.EPFile == File(move.To) &&
+						(KingAttackedLine.IsBitSet(move.To-8) || KingAttackedLine.IsBitSet(move.To+8)) {
 						legalMoves.AddMove(move)
 					}
 				}
@@ -214,7 +219,7 @@ func genKnightMoves(pos *Position, square Square, piece Piece) MoveList {
 	var knightMoveList MoveList
 
 	for i := 0; i < 8; i++ {
-		if ((allowedMoves>>i)&1) == 1 && (pos.Board[square+knightMoveOffsets[i]].Color != piece.Color) {
+		if ((allowedMoves>>i)&1) == 1 && (IgnoreFriendlyPieces || pos.Board[square+knightMoveOffsets[i]].Color != piece.Color) {
 			knightMoveList.AddMove(Move{From: square, To: square + knightMoveOffsets[i], Flag: NoFlag})
 		}
 
@@ -262,6 +267,9 @@ func genSlidingMoves(pos *Position, square Square, piece Piece) MoveList {
 
 			toColor := pos.Board[to].Color
 			if toColor == piece.Color {
+				if IgnoreFriendlyPieces {
+					slidingMoveList.AddMove(Move{From: square, To: to, Flag: NoFlag})
+				}
 				break
 			}
 
@@ -303,6 +311,9 @@ func genKingMoves(pos *Position, square Square, piece Piece) MoveList {
 		pieceOnTo := pos.Board[to]
 
 		if pieceOnTo.Color == piece.Color {
+			if IgnoreFriendlyPieces {
+				kingMoveList.AddMove(Move{From: square, To: to, Flag: NoFlag})
+			}
 			continue
 		}
 
@@ -365,8 +376,12 @@ func numChecks(pos *Position) int {
 	return count
 }
 
+// IgnoreFriendlyPieces is used to ignore friendly pieces when generating moves. For the Squares under attack BB
+var IgnoreFriendlyPieces bool = false
+
 // enemy pieces can also be "Under attack", which makes them not accessable by the king.
 // We do this by removing the king from the board, and then generating all possible moves for the enemy pieces.
+// There is a bug where enemy pieces should also be include in the mask if they are protected by another piece.
 func BBSquaresUnderAttack(pos *Position) Bitboard {
 	if !SqToEdgeComputed {
 		computeSquaresToEdge()
@@ -375,6 +390,7 @@ func BBSquaresUnderAttack(pos *Position) Bitboard {
 	pos.Board[pos.GetKingSquare(pos.ColorToMove)] = Piece{NoColor, NoPiece} // Remove the king from the board
 	pos.ColorToMove = pos.ColorToMove.opposite()
 	var opponentMoves MoveList
+	IgnoreFriendlyPieces = true
 	for sq := Square(1); sq <= 64; sq++ {
 		currPiece := pos.Board[sq]
 		if currPiece.Color != pos.ColorToMove {
@@ -395,6 +411,7 @@ func BBSquaresUnderAttack(pos *Position) Bitboard {
 		}
 
 	}
+	IgnoreFriendlyPieces = false
 	pos.ColorToMove = pos.ColorToMove.opposite()
 	pos.Board[pos.GetKingSquare(pos.ColorToMove)] = Piece{pos.ColorToMove, King} // Add the king back to the board
 

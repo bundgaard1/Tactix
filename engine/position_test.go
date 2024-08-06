@@ -38,7 +38,7 @@ func TestFromFEN1(t *testing.T) {
 }
 
 func TestFromFEN2(t *testing.T) {
-	pos := engine.FromFEN("rnbqkbnr/pp3ppp/8/2pPp3/P1P3N1/1P6/3PKPPP/RNB2B1R b Kq 2 0 6")
+	pos := engine.FromFEN("rnbqkbnr/pp3ppp/8/2pPp3/P1P3N1/1P6/3PKPPP/RNB2B1R b Kq b4 0 6")
 
 	if pos.ColorToMove != engine.Black {
 		t.Errorf("Color to move is incorrect")
