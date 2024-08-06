@@ -21,17 +21,23 @@ const Banner = `
 type Cli struct {
 	board  engine.Position
 	reader *bufio.Reader
+	writer *bufio.Writer
 }
 
 func NewCli() Cli {
 	return Cli{
 		board:  engine.FromStandardStartingPosition(),
 		reader: bufio.NewReader(os.Stdin),
+		writer: bufio.NewWriter(os.Stdout),
 	}
 }
 
 func printPromt() {
-	fmt.Print("Tactix> ")
+	fmt.Print("")
+}
+
+func (cli *Cli) toOutput(s string) {
+	cli.writer.Write([]byte(s))
 }
 
 func Run() {
@@ -48,37 +54,38 @@ func Run() {
 		}
 		lexer := NewLexer(input)
 		command := lexer.GetNextToken()
+
 		if lexer.IsAtEnd() {
 			continue
 		}
+
 		cli.handleCommand(command.Literal, &lexer)
 	}
 }
 
 func (cli *Cli) handleCommand(command string, lexer *Lexer) {
+
 	switch command {
-	case "print", "p":
+	case "quit":
+		os.Exit(0)
+	case "d":
 		fmt.Println(cli.board.String())
 	case "perft":
-		cli.handlePerftCommand(lexer)
-	case "divide":
-		cli.handleDivideCommand(lexer)
+		cli.perftCommand(lexer)
+	case "bench":
+		cli.benchCommand(lexer)
 	case "move", "m":
-		cli.handleMoveCommand(lexer)
-	case "fen":
-		fmt.Println(engine.FEN(&cli.board))
+		cli.moveCommand(lexer)
 	case "position", "pos":
-		cli.handlePositionCommand(lexer)
+		cli.positionCommand(lexer)
 	case "help", "h":
-		cli.handleHelpCommand()
-	case "quit", "q":
-		os.Exit(0)
+		cli.helpCommand()
 	default:
 		fmt.Println("Unknown command : " + command)
 	}
 }
 
-func (cli *Cli) handleMoveCommand(lexer *Lexer) {
+func (cli *Cli) moveCommand(lexer *Lexer) {
 
 	moveStr := lexer.GetNextToken()
 
@@ -100,7 +107,7 @@ func (cli *Cli) handleMoveCommand(lexer *Lexer) {
 
 }
 
-func (cli *Cli) handlePerftCommand(lexer *Lexer) {
+func (cli *Cli) perftCommand(lexer *Lexer) {
 	depthStr := lexer.GetNextToken()
 
 	depth, err := strconv.Atoi(depthStr.Literal)
@@ -116,35 +123,21 @@ func (cli *Cli) handlePerftCommand(lexer *Lexer) {
 	fmt.Println("Total nodes: ", nodes)
 }
 
-func (cli *Cli) handleDivideCommand(lexer *Lexer) {
-	depthStr := lexer.GetNextToken()
-
-	depth, err := strconv.Atoi(depthStr.Literal)
-
-	if err != nil {
-		fmt.Println("Invalid depth: '", depthStr.Literal, "'")
-		return
-	}
-
-	summary, nodes := engine.PerftDivided(&cli.board, depth)
-
-	fmt.Println(summary)
-	fmt.Println("Total nodes: ", nodes)
-}
-
-func (cli *Cli) handlePositionCommand(lexer *Lexer) {
+func (cli *Cli) positionCommand(lexer *Lexer) {
 	fenStr := lexer.GetRestOfInput()
 	cli.board = engine.FromFEN(fenStr)
 	fmt.Println(cli.board.String())
 }
 
-func (cli *Cli) handleHelpCommand() {
+func (cli *Cli) benchCommand(lexer *Lexer) {
+	fmt.Println("Bench command")
+}
+
+func (cli *Cli) helpCommand() {
 	fmt.Println("Commands:")
-	fmt.Println("	print - Print the current board")
+	fmt.Println("	d - Display the current board")
 	fmt.Println("	move <move> - Make a move")
 	fmt.Println("	perft <depth> - Run perft to a certain depth")
-	fmt.Println("	divide <depth> - Run perft to a certain depth and divide")
-	fmt.Println("	fen - Print the board from a fen string")
 	fmt.Println("	position <fen> - Set the board to a fen string")
 	fmt.Println("	help - Print this help message")
 	fmt.Println("	quit - Exit the program")
