@@ -16,13 +16,14 @@ func GetValidMoves(pos *Position) MoveList {
 					// King moves should be filtered from filterMovesToLegal
 					legalMoves.AddMove(move)
 				} else {
-					// Block the attack/ Capture the attacking piece, There is a bug with en passent here
+					// Block the attack/ Capture the attacking piece
 					if KingAttackedLine.IsBitSet(move.To) {
 						legalMoves.AddMove(move)
 					}
 					// En passent check, very disgusting.
 					if move.Flag == EnPassentCapture && pos.EPFile == File(move.To) &&
-						(KingAttackedLine.IsBitSet(move.To-8) || KingAttackedLine.IsBitSet(move.To+8)) {
+						((KingAttackedLine.IsBitSet(move.To-8) && pos.ColorToMove == White) ||
+							(KingAttackedLine.IsBitSet(move.To+8) && pos.ColorToMove == Black)) {
 						legalMoves.AddMove(move)
 					}
 				}
@@ -367,10 +368,12 @@ func numChecks(pos *Position) int {
 	pos.ColorToMove = pos.ColorToMove.opposite()
 
 	count := 0
+	previousAttacker := Square(0) // The same attacker can't attack the king twice, this is such that a pawn can't attack the king twice from promotions
 
 	for i := 0; i < opponentMoves.Count; i++ {
-		if opponentMoves.Moves[i].To == kingSqaure {
+		if opponentMoves.Moves[i].To == kingSqaure && previousAttacker != opponentMoves.Moves[i].From {
 			count++
+			previousAttacker = opponentMoves.Moves[i].From
 		}
 	}
 	return count

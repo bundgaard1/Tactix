@@ -2,16 +2,17 @@ package main
 
 import (
 	"fmt"
+	"tactix/cli"
 	"tactix/engine"
 )
 
 func main() {
 
-	// cli.Run()
+	cli.Run()
 
-	pos := engine.FromFEN("8/4k3/8/5q2/5n2/5K2/8/8 w - - 0 4")
+	pos := engine.FromFEN("2k5/K6r/8/2Pp4/8/8/8/8 w - d6 0 6")
 	fmt.Print(pos.String())
-	bb := engine.BBSquaresUnderAttack(&pos)
+	bb := engine.BBKingAttackedMask(&pos)
 	moves := engine.GetValidMoves(&pos)
 
 	for i := 0; i < moves.Count; i++ {
