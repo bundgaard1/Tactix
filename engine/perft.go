@@ -40,7 +40,7 @@ func Perft(pos *Position, depth int) int {
 	}
 	nodes := 0
 
-	moveList := GenLegalMoves(pos)
+	moveList := LegalMoves(pos)
 
 	if depth == 1 {
 		return moveList.Count
@@ -60,7 +60,7 @@ func PerftDivided(pos *Position, depth int) (string, int) {
 	var str strings.Builder
 
 	totalNodes := 0
-	moveList := GenLegalMoves(pos)
+	moveList := LegalMoves(pos)
 
 	for i := 0; i < moveList.Count; i++ {
 		move := moveList.Moves[i]
@@ -73,4 +73,20 @@ func PerftDivided(pos *Position, depth int) (string, int) {
 	}
 
 	return str.String(), totalNodes
+}
+
+func DoPerftSuite() {
+	for i, perftTest := range PerftSuite {
+		pos := FromFEN(perftTest.FEN)
+
+		nodesExplored := Perft(&pos, perftTest.Depth)
+
+		fmt.Print("Test ", i, ": ", nodesExplored, " ")
+		if nodesExplored == perftTest.ExpectedNodes {
+			fmt.Print("check \n")
+		} else {
+			fmt.Print("wrong (expected ", perftTest.ExpectedNodes, ")\n")
+
+		}
+	}
 }

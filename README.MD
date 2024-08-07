@@ -13,4 +13,4 @@ The engine is not UCI compatible yet. Type `help` to see the available commands.
 ## References
 
 - [Blunder](https://github.com/algerbrex/blunder)
-- [Sebastian Lauge](https://www.youtube.com/@SebastianLague)
+- [Sebastian Lauge](https://github.com/SebLague/Chess-Coding-Adventure?tab=readme-ov-file)

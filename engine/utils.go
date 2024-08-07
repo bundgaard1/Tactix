@@ -53,13 +53,12 @@ func CastelingRightsToString(rights uint8) string {
 var ErrInvalidMove = errors.New("invalid move")
 
 // ParseMove in the form like "e2e4" to a Move struct
-// Promotion is not supported (yet)
 func ParseUCIMove(pos *Position, uciMove string) (Move, error) {
 	if len(uciMove) < 4 || 5 < len(uciMove) {
 		return Move{}, ErrInvalidMove
 	}
 
-	move := Move{}
+	var move Move
 	from := uciMove[0:2]
 	to := uciMove[2:4]
 
@@ -139,7 +138,7 @@ func IsMoveValid(pos *Position, move Move) bool {
 	}
 
 	// Check if the move is valid
-	moveList := GenLegalMoves(pos)
+	moveList := LegalMoves(pos)
 	for i := 0; i < moveList.Count; i++ {
 		if moveList.Moves[i] == move {
 			return true

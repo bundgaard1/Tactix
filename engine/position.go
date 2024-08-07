@@ -10,85 +10,16 @@ type PieceType int8
 
 const (
 	A8, B8, C8, D8, E8, F8, G8, H8 = 57, 58, 59, 60, 61, 62, 63, 64
-	A7, B7, C7, D7, E7, F7, G7, H7 = 49, 50, 51, 52, 53, 54, 55, 56
-	A6, B6, C6, D6, E6, F6, G6, H6 = 41, 42, 43, 44, 45, 46, 47, 48
-	A5, B5, C5, D5, E5, F5, G5, H5 = 33, 34, 35, 36, 37, 38, 39, 40
-	A4, B4, C4, D4, E4, F4, G4, H4 = 25, 26, 27, 28, 29, 30, 31, 32
-	A3, B3, C3, D3, E3, F3, G3, H3 = 17, 18, 19, 20, 21, 22, 23, 24
-	A2, B2, C2, D2, E2, F2, G2, H2 = 9, 10, 11, 12, 13, 14, 15, 16
 	A1, B1, C1, D1, E1, F1, G1, H1 = 1, 2, 3, 4, 5, 6, 7, 8
 )
 
 const (
-	// Piece types
-	NoPiece PieceType = 0
-	Pawn    PieceType = 1
-	Knight  PieceType = 2
-	Bishop  PieceType = 3
-	Rook    PieceType = 4
-	King    PieceType = 5
-	Queen   PieceType = 6
-
-	// Colors
-	NoColor Color = 0
-	White   Color = 1
-	Black   Color = 2
-
 	// Castling Right Mask
 	WhiteKingsideRight  uint8 = 0x8
 	WhiteQueensideRight uint8 = 0x4
 	BlackKingsideRight  uint8 = 0x2
 	BlackQueensideRight uint8 = 0x1
 )
-
-func (p PieceType) String() string {
-	switch p {
-	case Pawn:
-		return "P"
-	case Knight:
-		return "N"
-	case Bishop:
-		return "B"
-	case Rook:
-		return "R"
-	case King:
-		return "K"
-	case Queen:
-		return "Q"
-	}
-	return "NO PIECE"
-}
-
-func (c Color) String() string {
-	if c == White {
-		return "W"
-	} else if c == Black {
-		return "B"
-	}
-	return "X"
-}
-
-func (c Color) opposite() Color {
-	if c == White {
-		return Black
-	} else if c == Black {
-		return White
-	}
-	return NoColor
-}
-
-type Piece struct {
-	Color
-	PieceType
-}
-
-func (p Piece) String() string {
-	return fmt.Sprintf("%s-%s", p.Color.String(), p.PieceType.String())
-}
-
-func (p Piece) Equal(other Piece) bool {
-	return p.Color == other.Color && p.PieceType == other.PieceType
-}
 
 type State struct {
 	EPFile         int8
@@ -112,13 +43,46 @@ type Position struct {
 	// History
 	prevStates [100]State
 
-	// Kings position
+	// King positions
 	WhiteKing Square
 	BlackKing Square
 
 	// finished state
-	checkmate bool
-	stalemate bool
+	Checkmate bool
+	Stalemate bool
+
+	// Piece Bitboards
+	// 0-5 White pieces (P, N, B, R, K, Q)
+	// 6-11 Black pieces (P, N, B, R, K, Q)
+	pieceBitboards [12]Bitboard
+}
+
+func (pos *Position) PieceBitboard(p Piece) *Bitboard {
+	index := int(p.Color)*6 + int(p.PieceType) - 7
+
+	return &pos.pieceBitboards[index]
+}
+
+func (pos *Position) ColorBitboard(c Color) Bitboard {
+	switch c {
+	case White:
+		return pos.pieceBitboards[0] | pos.pieceBitboards[1] | pos.pieceBitboards[2] | pos.pieceBitboards[3] | pos.pieceBitboards[4] | pos.pieceBitboards[5]
+	case Black:
+		return pos.pieceBitboards[6] | pos.pieceBitboards[7] | pos.pieceBitboards[8] | pos.pieceBitboards[9] | pos.pieceBitboards[10] | pos.pieceBitboards[11]
+	default:
+		return 0
+	}
+}
+
+// Call this after Board has been setup
+func (pos *Position) InitPieceBitboards() {
+
+	for i := Square(1); i <= 64; i++ {
+		piece := pos.Board[i]
+		if piece.PieceType != NoPiece {
+			pos.PieceBitboard(piece).Set(i)
+		}
+	}
 }
 
 func FromStandardStartingPosition() Position {
@@ -150,7 +114,7 @@ func (pos *Position) String() string {
 func (pos *Position) MakeMove(move Move) {
 
 	movedPiece := pos.Board[move.From]
-	capturedPiece := pos.Board[move.To] // Or no piece
+	capturedPiece := pos.Board[move.To]
 
 	// Save the current state
 	state := State{
@@ -166,6 +130,19 @@ func (pos *Position) MakeMove(move Move) {
 	pos.Board[move.To] = movedPiece
 	pos.Board[move.From] = Piece{NoColor, NoPiece}
 
+	// Update biboards
+
+	fromBB := BBFromSquares(move.From)
+	toBB := BBFromSquares(move.To)
+	fromToBB := fromBB | toBB
+
+	*pos.PieceBitboard(movedPiece) ^= fromToBB
+	if capturedPiece.PieceType != NoPiece {
+		*pos.PieceBitboard(capturedPiece) ^= toBB
+	}
+
+	// Update the EPFile
+
 	pos.EPFile = 0
 
 	// Rule 50
@@ -180,52 +157,64 @@ func (pos *Position) MakeMove(move Move) {
 	case Castling:
 		if movedPiece.Color == White {
 			if move.To == Square(3) {
-				pos.Board[4] = pos.Board[1]
-				pos.Board[1] = Piece{NoColor, NoPiece}
+				pos.swapSquares(Square(1), Square(4))
+				*pos.PieceBitboard(Piece{White, Rook}) ^= BBFromSquares(1, 4)
 			}
 			if move.To == Square(7) {
-				pos.Board[6] = pos.Board[8]
-				pos.Board[8] = Piece{NoColor, NoPiece}
+				pos.swapSquares(Square(8), Square(6))
+				*pos.PieceBitboard(Piece{White, Rook}) ^= BBFromSquares(8, 6)
 			}
 		}
 		if movedPiece.Color == Black {
 			if move.To == Square(59) {
-				pos.Board[60] = pos.Board[57]
-				pos.Board[57] = Piece{NoColor, NoPiece}
+				pos.swapSquares(Square(57), Square(60))
+				*pos.PieceBitboard(Piece{Black, Rook}) ^= BBFromSquares(57, 60)
 			}
 			if move.To == Square(63) {
-				pos.Board[62] = pos.Board[64]
-				pos.Board[64] = Piece{NoColor, NoPiece}
+				pos.swapSquares(Square(64), Square(62))
+				*pos.PieceBitboard(Piece{Black, Rook}) ^= BBFromSquares(64, 62)
 			}
 		}
 	case EnPassentCapture:
 		if movedPiece.Color == White {
 			pos.Board[move.To-8] = Piece{NoColor, NoPiece}
+			*pos.PieceBitboard(Piece{Black, Pawn}) ^= BBFromSquares(move.To - 8)
 			state.Captured = Piece{PieceType: Pawn, Color: Black}
 		} else {
 			pos.Board[move.To+8] = Piece{NoColor, NoPiece}
+			*pos.PieceBitboard(Piece{White, Pawn}) ^= BBFromSquares(move.To + 8)
 			state.Captured = Piece{PieceType: Pawn, Color: White}
 		}
 	case PromotionToQueen:
 		pos.Board[move.To] = Piece{Color: movedPiece.Color, PieceType: Queen}
+		*pos.PieceBitboard(Piece{movedPiece.Color, Queen}) ^= toBB
+		*pos.PieceBitboard(movedPiece) ^= toBB
 	case PromotionToKnight:
 		pos.Board[move.To] = Piece{Color: movedPiece.Color, PieceType: Knight}
+		*pos.PieceBitboard(Piece{movedPiece.Color, Knight}) ^= toBB
+		*pos.PieceBitboard(movedPiece) ^= toBB
 	case PromotionToRook:
 		pos.Board[move.To] = Piece{Color: movedPiece.Color, PieceType: Rook}
+		*pos.PieceBitboard(Piece{movedPiece.Color, Rook}) ^= toBB
+		*pos.PieceBitboard(movedPiece) ^= toBB
 	case PromotionToBishop:
 		pos.Board[move.To] = Piece{Color: movedPiece.Color, PieceType: Bishop}
-
+		*pos.PieceBitboard(Piece{movedPiece.Color, Bishop}) ^= toBB
+		*pos.PieceBitboard(movedPiece) ^= toBB
 	}
 
 	pos.updateCastlingRights()
 
-	// Update the king position
-	if movedPiece.PieceType == King {
-		pos.updateKingSquare(movedPiece.Color, Square(move.To))
-	}
-
 	pos.prevStates[pos.Ply] = state
 	pos.Ply++
+
+	if movedPiece.PieceType == King {
+		if movedPiece.Color == White {
+			pos.WhiteKing = move.To
+		} else {
+			pos.BlackKing = move.To
+		}
+	}
 
 	pos.ColorToMove = pos.ColorToMove.opposite()
 
@@ -280,46 +269,64 @@ func (pos *Position) UndoMove(move Move) {
 
 	pos.Board[move.From] = prevState.Moved
 
+	// Update biboards
+	fromBB := BBFromSquares(move.From)
+	toBB := BBFromSquares(move.To)
+	fromToBB := fromBB | toBB
+
+	*pos.PieceBitboard(prevState.Moved) ^= fromToBB
+
 	switch move.Flag {
 	default:
 		pos.Board[move.To] = prevState.Captured
+		if prevState.Captured.PieceType != NoPiece {
+			*pos.PieceBitboard(prevState.Captured) ^= toBB
+		}
 	case Castling:
 		if prevState.Moved.Color == White {
 			if move.To == Square(3) {
-				pos.Board[1] = pos.Board[4]
-				pos.Board[3] = Piece{NoColor, NoPiece}
-				pos.Board[4] = Piece{NoColor, NoPiece}
+				pos.swapSquares(Square(1), Square(4))
+				pos.Board[3] = ANoPiece()
+				*pos.PieceBitboard(Piece{White, Rook}) ^= BBFromSquares(1, 4)
+				*pos.PieceBitboard(Piece{White, King}) ^= BBFromSquares(3, 4)
 			}
 			if move.To == Square(7) {
-				pos.Board[8] = pos.Board[6]
-				pos.Board[6] = Piece{NoColor, NoPiece}
-				pos.Board[7] = Piece{NoColor, NoPiece}
+				pos.swapSquares(Square(8), Square(6))
+				pos.Board[7] = ANoPiece()
+				*pos.PieceBitboard(Piece{White, Rook}) ^= BBFromSquares(8, 6)
+				*pos.PieceBitboard(Piece{White, King}) ^= BBFromSquares(5, 6)
 			}
 		} else {
 			if move.To == Square(59) {
-				pos.Board[57] = pos.Board[60]
-				pos.Board[60] = Piece{NoColor, NoPiece}
-				pos.Board[59] = Piece{NoColor, NoPiece}
+				pos.swapSquares(Square(57), Square(60))
+				pos.Board[59] = ANoPiece()
+				*pos.PieceBitboard(Piece{Black, Rook}) ^= BBFromSquares(57, 60)
+				*pos.PieceBitboard(Piece{Black, King}) ^= BBFromSquares(59, 60)
 			}
 			if move.To == Square(63) {
-				pos.Board[64] = pos.Board[62]
-				pos.Board[62] = Piece{NoColor, NoPiece}
-				pos.Board[63] = Piece{NoColor, NoPiece}
+				pos.swapSquares(Square(64), Square(62))
+				pos.Board[63] = ANoPiece()
+				*pos.PieceBitboard(Piece{Black, Rook}) ^= BBFromSquares(64, 62)
+				*pos.PieceBitboard(Piece{Black, King}) ^= BBFromSquares(61, 62)
 			}
 		}
 	case EnPassentCapture:
 		pos.Board[move.To] = Piece{NoColor, NoPiece}
 		if prevState.Moved.Color == White {
 			pos.Board[move.To-8] = Piece{Black, Pawn}
+			*pos.PieceBitboard(Piece{Black, Pawn}) ^= BBFromSquares(move.To - 8)
 		} else {
 			pos.Board[move.To+8] = Piece{White, Pawn}
+			*pos.PieceBitboard(Piece{White, Pawn}) ^= BBFromSquares(move.To + 8)
 		}
 	}
 
-	// Update the king position
-	movedPiece := prevState.Moved
-	if movedPiece.PieceType == King {
-		pos.updateKingSquare(movedPiece.Color, Square(move.From))
+	if prevState.Moved.PieceType == King {
+		if prevState.Moved.Color == White {
+			pos.WhiteKing = move.From
+		} else {
+			pos.BlackKing = move.From
+		}
 	}
 
 	pos.ColorToMove = pos.ColorToMove.opposite()
@@ -340,15 +347,23 @@ func (pos *Position) GetKingSquare(color Color) Square {
 	return pos.BlackKing
 }
 
-func (pos *Position) updateKingSquare(Color Color, square Square) {
-	if Color == White {
-		pos.WhiteKing = square
-	} else {
-		pos.BlackKing = square
-	}
-
-}
-
 func (pos *Position) FlipColor() {
 	pos.ColorToMove = pos.ColorToMove.opposite()
+}
+
+func (pos *Position) swapSquares(a, b Square) {
+	pos.Board[a], pos.Board[b] = pos.Board[b], pos.Board[a]
+
+	// Update bitboards, disgusting
+	aBB := BBFromSquares(a)
+	bBB := BBFromSquares(b)
+	abBB := aBB | bBB
+	aPiece := pos.Board[a]
+	bPiece := pos.Board[b]
+	if aPiece.PieceType != NoPiece {
+		*pos.PieceBitboard(aPiece) ^= abBB
+	}
+	if bPiece.PieceType != NoPiece {
+		*pos.PieceBitboard(bPiece) ^= abBB
+	}
 }

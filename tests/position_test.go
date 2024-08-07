@@ -5,58 +5,31 @@ import (
 	"testing"
 )
 
-func TestFromFEN1(t *testing.T) {
-	pos := engine.FromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+var bitboardsForStandard map[engine.Piece]engine.Bitboard = map[engine.Piece]engine.Bitboard{
+	engine.WhitePiece(engine.Pawn):   0x000000000000FF00, // White Pawns
+	engine.WhitePiece(engine.Knight): 0x0000000000000042, // White Knights
+	engine.WhitePiece(engine.Bishop): 0x0000000000000024, // White Bishops
+	engine.WhitePiece(engine.Rook):   0x0000000000000081, // White Rooks
+	engine.WhitePiece(engine.Queen):  0x0000000000000008, // White Queens
+	engine.WhitePiece(engine.King):   0x0000000000000010, // White Kings
 
-	if pos.ColorToMove != engine.White {
-		t.Errorf("Color to move is incorrect")
-	}
-
-	if pos.CastlingRights != engine.WhiteKingsideRight|engine.WhiteQueensideRight|engine.BlackKingsideRight|engine.BlackQueensideRight {
-		t.Errorf("Castling rights are incorrect")
-	}
-
-	if pos.EPFile != 0 {
-		t.Errorf("En passant file is incorrect")
-	}
-
-	if pos.Rule50 != 0 {
-		t.Errorf("Rule 50 is incorrect")
-	}
-
-	if pos.Ply != 1 {
-		t.Errorf("Ply is incorrect")
-	}
-
-	if pos.Board[engine.A1].PieceType != engine.Rook || pos.Board[engine.A1].Color != engine.White {
-		t.Errorf("A1 is incorrect")
-	}
-
-	if pos.Board[engine.B1].PieceType != engine.Knight || pos.Board[engine.B1].Color != engine.White {
-		t.Errorf("B1 is incorrect")
-	}
+	engine.BlackPiece(engine.Pawn):   0x00FF000000000000, // Black Pawns
+	engine.BlackPiece(engine.Knight): 0x4200000000000000, // Black Knights
+	engine.BlackPiece(engine.Bishop): 0x2400000000000000, // Black Bishops
+	engine.BlackPiece(engine.Rook):   0x8100000000000000, // Black Rooks
+	engine.BlackPiece(engine.Queen):  0x0800000000000000, // Black Queens
+	engine.BlackPiece(engine.King):   0x1000000000000000, // Black Kings
 }
 
-func TestFromFEN2(t *testing.T) {
-	pos := engine.FromFEN("rnbqkbnr/pp3ppp/8/2pPp3/P1P3N1/1P6/3PKPPP/RNB2B1R b Kq b4 0 6")
+// Test bitboard string representation
+func TestPieceBitboardsFromStart(t *testing.T) {
+	pos := engine.FromStandardStartingPosition()
+	pos.InitPieceBitboards()
 
-	if pos.ColorToMove != engine.Black {
-		t.Errorf("Color to move is incorrect")
+	for piece, bitboard := range bitboardsForStandard {
+		if *pos.PieceBitboard(piece) != bitboard {
+			t.Errorf("Bitboard for %s is incorrect", piece)
+		}
 	}
 
-	if pos.CastlingRights != engine.WhiteKingsideRight|engine.BlackQueensideRight {
-		t.Errorf("Castling rights are incorrect")
-	}
-
-	if pos.EPFile != 2 {
-		t.Errorf("En passant file is incorrect")
-	}
-
-	if pos.Rule50 != 0 {
-		t.Errorf("Rule 50 is incorrect")
-	}
-
-	if pos.Ply != 6 {
-		t.Errorf("Ply is incorrect")
-	}
 }

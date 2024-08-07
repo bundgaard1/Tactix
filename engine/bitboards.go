@@ -14,32 +14,44 @@ const (
 	EmptyBB Bitboard = 0x0
 )
 
-func (bitboard *Bitboard) SetBit(sq Square) {
+func BBFromSquares(squares ...Square) Bitboard {
+	var bb Bitboard
+	for _, sq := range squares {
+		bb.Set(sq)
+	}
+	return bb
+}
+
+func (bitboard *Bitboard) Set(sq Square) {
 	*bitboard |= (1 << (sq - 1))
 }
 
-func (bitboard *Bitboard) ClearBit(sq Square) {
+func (bitboard *Bitboard) Unset(sq Square) {
 	*bitboard &= FullBB ^ (1 << (sq - 1))
 }
 
-func (bitboard Bitboard) IsBitSet(sq Square) bool {
+func (bitboard Bitboard) IsSet(sq Square) bool {
 	return (bitboard & (1 << (sq - 1))) != 0
 }
 
 // Least significant bit
-func (bitboard Bitboard) Lsb() Square {
+func (bitboard Bitboard) lsb() Square {
 	return Square(bits.TrailingZeros64(uint64(bitboard)))
 }
 
-func (bitboard *Bitboard) PopBit() Square {
-	pos := bitboard.Lsb()
-	bitboard.ClearBit(pos + 1)
+func (bitboard *Bitboard) Pop() Square {
+	if *bitboard == 0 {
+		panic("Pop called on empty bitboard,")
+	}
+
+	pos := bitboard.lsb()
+
 	return pos + 1
 }
 
 // Count the bits in a given bitboard using the SWAR-popcount
 // algorithm for 64-bit integers.
-func (bitboard Bitboard) CountBits() int {
+func (bitboard Bitboard) Count() int {
 	return bits.OnesCount64(uint64(bitboard))
 }
 

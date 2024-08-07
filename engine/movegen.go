@@ -15,13 +15,13 @@ func genMovegenData(pos *Position) {
 	movegenData.EnemyAllPossibleMoves = GetAllPossibleMoves(pos)
 	pos.FlipColor()
 
-	movegenData.KingAttackedLine = BBKingAttackedMask(pos)
-	movegenData.AttackedSquares = BBSquaresUnderAttack(pos)
-	movegenData.PinnedSquares = BBPinnedSquares(pos)
+	movegenData.KingAttackedLine = kingAttackedMask(pos)
+	movegenData.AttackedSquares = squaresUnderAttackMask(pos)
+	movegenData.PinnedSquares = pinnedSquaresMask(pos)
 
 }
 
-func GenLegalMoves(pos *Position) MoveList {
+func LegalMoves(pos *Position) MoveList {
 	var legalMoves MoveList
 
 	genMovegenData(pos)
@@ -41,13 +41,13 @@ func GenLegalMoves(pos *Position) MoveList {
 					legalMoves.AddMove(move)
 				} else {
 					// Block the attack/ Capture the attacking piece
-					if KingAttackedLine.IsBitSet(move.To) {
+					if KingAttackedLine.IsSet(move.To) {
 						legalMoves.AddMove(move)
 					}
 					// En passent check, very disgusting.
 					if move.Flag == EnPassentCapture && pos.EPFile == File(move.To) &&
-						((KingAttackedLine.IsBitSet(move.To-8) && pos.ColorToMove == White) ||
-							(KingAttackedLine.IsBitSet(move.To+8) && pos.ColorToMove == Black)) {
+						((KingAttackedLine.IsSet(move.To-8) && pos.ColorToMove == White) ||
+							(KingAttackedLine.IsSet(move.To+8) && pos.ColorToMove == Black)) {
 						legalMoves.AddMove(move)
 					}
 				}
@@ -66,13 +66,13 @@ func GenLegalMoves(pos *Position) MoveList {
 
 	if legalMoves.Count == 0 {
 		if checks > 0 {
-			pos.checkmate = true
+			pos.Checkmate = true
 		} else {
-			pos.stalemate = true
+			pos.Stalemate = true
 		}
 	} else {
-		pos.checkmate = false
-		pos.stalemate = false
+		pos.Checkmate = false
+		pos.Stalemate = false
 	}
 
 	return legalMoves
@@ -101,13 +101,13 @@ func isMoveLegal(pos *Position, move Move) bool {
 	}
 	// Pinned Piece
 	pinnedSquares := &movegenData.PinnedSquares
-	if piece.PieceType != King && pinnedSquares.IsBitSet(move.From) && !pinnedSquares.IsBitSet(move.To) {
+	if piece.PieceType != King && pinnedSquares.IsSet(move.From) && !pinnedSquares.IsSet(move.To) {
 		return false
 	}
 
 	// King cant move to attacked square
 
-	if piece.PieceType == King && movegenData.AttackedSquares.IsBitSet(move.To) {
+	if piece.PieceType == King && movegenData.AttackedSquares.IsSet(move.To) {
 		return false
 	}
 
@@ -408,14 +408,15 @@ var IgnoreFriendlyPieces bool = false
 
 // enemy pieces can also be "Under attack", which makes them not accessable by the king.
 // We do this by removing the king from the board, and then generating all possible moves for the enemy pieces.
-func BBSquaresUnderAttack(pos *Position) Bitboard {
+func squaresUnderAttackMask(pos *Position) Bitboard {
 	if !SqToEdgeComputed {
 		computeSquaresToEdge()
 	}
 
 	var opponentMoves MoveList
 
-	pos.Board[pos.GetKingSquare(pos.ColorToMove)] = Piece{NoColor, NoPiece} // Remove the king from the board
+	kingpos := pos.GetKingSquare(pos.ColorToMove)
+	pos.Board[kingpos] = Piece{NoColor, NoPiece} // Remove the king from the board
 	pos.FlipColor()
 	IgnoreFriendlyPieces = true
 	for sq := Square(1); sq <= 64; sq++ {
@@ -440,7 +441,7 @@ func BBSquaresUnderAttack(pos *Position) Bitboard {
 	}
 	IgnoreFriendlyPieces = false
 	pos.FlipColor()
-	pos.Board[pos.GetKingSquare(pos.ColorToMove)] = Piece{pos.ColorToMove, King} // Add the king back to the board
+	pos.Board[kingpos] = Piece{pos.ColorToMove, King} // Add the king back to the board
 
 	var attackedSquares Bitboard
 
@@ -448,16 +449,16 @@ func BBSquaresUnderAttack(pos *Position) Bitboard {
 		move := opponentMoves.Moves[i]
 		if pos.Board[move.From].PieceType == Pawn {
 			if File(move.From) != File(move.To) {
-				attackedSquares.SetBit(move.To)
+				attackedSquares.Set(move.To)
 			}
 		} else {
-			attackedSquares.SetBit(opponentMoves.Moves[i].To)
+			attackedSquares.Set(opponentMoves.Moves[i].To)
 		}
 	}
 	return attackedSquares
 }
 
-func BBKingAttackedMask(pos *Position) Bitboard {
+func kingAttackedMask(pos *Position) Bitboard {
 	if !SqToEdgeComputed {
 		computeSquaresToEdge()
 	}
@@ -479,7 +480,7 @@ func BBKingAttackedMask(pos *Position) Bitboard {
 		return attackedSquares
 	}
 
-	attackedSquares.SetBit(attackerSquare)
+	attackedSquares.Set(attackerSquare)
 
 	currPiece := pos.Board[attackerSquare]
 
@@ -498,7 +499,7 @@ func BBKingAttackedMask(pos *Position) Bitboard {
 			if to == pos.GetKingSquare(pos.ColorToMove) {
 				found = true
 				for j := int8(1); j < i; j++ {
-					attackedSquares.SetBit(attackerSquare + directionOffsets[dirIndex]*Square(j))
+					attackedSquares.Set(attackerSquare + directionOffsets[dirIndex]*Square(j))
 				}
 			}
 
@@ -511,7 +512,7 @@ func BBKingAttackedMask(pos *Position) Bitboard {
 	return attackedSquares
 }
 
-func BBPinnedSquares(pos *Position) Bitboard {
+func pinnedSquaresMask(pos *Position) Bitboard {
 	var pinnedSquares Bitboard
 
 	if !SqToEdgeComputed {
@@ -549,9 +550,9 @@ func BBPinnedSquares(pos *Position) Bitboard {
 					if pos.GetKingSquare(pos.ColorToMove) == to && piecesGoneThrough == 1 {
 						// Set all the previous squares to a pinned square
 						for j := int8(1); j < i; j++ {
-							pinnedSquares.SetBit(sq + directionOffsets[dirIndex]*Square(j))
+							pinnedSquares.Set(sq + directionOffsets[dirIndex]*Square(j))
 						}
-						pinnedSquares.SetBit(sq)
+						pinnedSquares.Set(sq)
 						break
 					}
 					if toColor == currPiece.Color.opposite() {
@@ -573,13 +574,13 @@ func BBPinnedSquares(pos *Position) Bitboard {
 					} else if pos.GetKingSquare(pos.ColorToMove) == to && whiteAndBlackPawnNextToEachOther != 0 {
 						// Set all the previous squares to a pinned square
 						for j := int8(1); j < i; j++ {
-							pinnedSquares.SetBit(sq + directionOffsets[dirIndex]*Square(j))
+							pinnedSquares.Set(sq + directionOffsets[dirIndex]*Square(j))
 						}
 
 						if pos.ColorToMove == White {
-							pinnedSquares.SetBit(Square(whiteAndBlackPawnNextToEachOther + 8))
+							pinnedSquares.Set(Square(whiteAndBlackPawnNextToEachOther + 8))
 						} else {
-							pinnedSquares.SetBit(Square(whiteAndBlackPawnNextToEachOther - 8))
+							pinnedSquares.Set(Square(whiteAndBlackPawnNextToEachOther - 8))
 						}
 
 						break
@@ -597,5 +598,5 @@ func BBPinnedSquares(pos *Position) Bitboard {
 }
 
 func squareUnderAttack(sq Square) bool {
-	return movegenData.AttackedSquares.IsBitSet(sq)
+	return movegenData.AttackedSquares.IsSet(sq)
 }

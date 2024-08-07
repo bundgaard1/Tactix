@@ -68,10 +68,12 @@ func FromFEN(fen string) Position {
 			sq := DeriveSquare(file, rank)
 			pos.Board[sq] = piece
 			file++
-			if char == 'K' {
-				pos.WhiteKing = sq
-			} else if char == 'k' {
-				pos.BlackKing = sq
+			if piece.PieceType == King {
+				if piece.Color == White {
+					pos.WhiteKing = sq
+				} else {
+					pos.BlackKing = sq
+				}
 			}
 		case '1', '2', '3', '4', '5', '6', '7', '8':
 			file += int(char - '0')
@@ -79,10 +81,6 @@ func FromFEN(fen string) Position {
 			panic("Invalid FEN: board position.")
 		}
 
-	}
-	// Check if both kings are present
-	if pos.WhiteKing == 0 || pos.BlackKing == 0 {
-		panic("Invalid FEN: missing king.")
 	}
 
 	// Side to move
@@ -142,8 +140,10 @@ func FromFEN(fen string) Position {
 		pos.Ply = 1
 	}
 
-	pos.checkmate = false
-	pos.stalemate = false
+	pos.Checkmate = false
+	pos.Stalemate = false
+
+	pos.InitPieceBitboards()
 
 	return pos
 }
