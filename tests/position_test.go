@@ -1,6 +1,7 @@
 package engine_test
 
 import (
+	"fmt"
 	"tactix/engine"
 	"testing"
 )
@@ -31,5 +32,41 @@ func TestPieceBitboardsFromStart(t *testing.T) {
 			t.Errorf("Bitboard for %s is incorrect", piece)
 		}
 	}
+}
 
+func TestPieceBitboardsMakeMove(t *testing.T) {
+	for _, perftTest := range engine.PerftSuite {
+
+		pos := engine.FromFEN(perftTest.FEN)
+
+		moves := engine.LegalMoves(&pos)
+
+		for i := 0; i < moves.Count; i++ {
+			move := moves.Moves[i]
+
+			pos.MakeMove(move)
+			result, piece := positionBitboardsCorrect(&pos)
+			if !result {
+				fmt.Print(pos.String())
+				fmt.Print(piece.String(), " : ", fmt.Sprintf(" %b \n", *pos.PieceBitboard(piece)))
+				t.Error("Bitboards incorrect")
+			}
+
+			pos.UndoMove(move)
+
+		}
+	}
+}
+
+func positionBitboardsCorrect(pos *engine.Position) (bool, engine.Piece) {
+	for i := engine.Square(1); i <= 64; i++ {
+		piece := pos.Board[i]
+		if piece == engine.ANoPiece() {
+			continue
+		}
+		if !pos.PieceBitboard(piece).IsSet(i) {
+			return false, piece
+		}
+	}
+	return true, engine.ANoPiece()
 }

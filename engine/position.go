@@ -5,8 +5,10 @@ import (
 	"strings"
 )
 
-type Color int8
-type PieceType int8
+type (
+	Color     int8
+	PieceType int8
+)
 
 const (
 	A8, B8, C8, D8, E8, F8, G8, H8 = 57, 58, 59, 60, 61, 62, 63, 64
@@ -76,7 +78,6 @@ func (pos *Position) ColorBitboard(c Color) Bitboard {
 
 // Call this after Board has been setup
 func (pos *Position) InitPieceBitboards() {
-
 	for i := Square(1); i <= 64; i++ {
 		piece := pos.Board[i]
 		if piece.PieceType != NoPiece {
@@ -112,7 +113,6 @@ func (pos *Position) String() string {
 
 // This function assumes that the move is valid
 func (pos *Position) MakeMove(move Move) {
-
 	movedPiece := pos.Board[move.From]
 	capturedPiece := pos.Board[move.To]
 
@@ -158,21 +158,17 @@ func (pos *Position) MakeMove(move Move) {
 		if movedPiece.Color == White {
 			if move.To == Square(3) {
 				pos.swapSquares(Square(1), Square(4))
-				*pos.PieceBitboard(Piece{White, Rook}) ^= BBFromSquares(1, 4)
 			}
 			if move.To == Square(7) {
 				pos.swapSquares(Square(8), Square(6))
-				*pos.PieceBitboard(Piece{White, Rook}) ^= BBFromSquares(8, 6)
 			}
 		}
 		if movedPiece.Color == Black {
 			if move.To == Square(59) {
 				pos.swapSquares(Square(57), Square(60))
-				*pos.PieceBitboard(Piece{Black, Rook}) ^= BBFromSquares(57, 60)
 			}
 			if move.To == Square(63) {
 				pos.swapSquares(Square(64), Square(62))
-				*pos.PieceBitboard(Piece{Black, Rook}) ^= BBFromSquares(64, 62)
 			}
 		}
 	case EnPassentCapture:
@@ -217,7 +213,6 @@ func (pos *Position) MakeMove(move Move) {
 	}
 
 	pos.ColorToMove = pos.ColorToMove.opposite()
-
 }
 
 func (pos *Position) updateCastlingRights() {
@@ -287,26 +282,22 @@ func (pos *Position) UndoMove(move Move) {
 			if move.To == Square(3) {
 				pos.swapSquares(Square(1), Square(4))
 				pos.Board[3] = ANoPiece()
-				*pos.PieceBitboard(Piece{White, Rook}) ^= BBFromSquares(1, 4)
 				*pos.PieceBitboard(Piece{White, King}) ^= BBFromSquares(3, 4)
 			}
 			if move.To == Square(7) {
 				pos.swapSquares(Square(8), Square(6))
 				pos.Board[7] = ANoPiece()
-				*pos.PieceBitboard(Piece{White, Rook}) ^= BBFromSquares(8, 6)
 				*pos.PieceBitboard(Piece{White, King}) ^= BBFromSquares(5, 6)
 			}
 		} else {
 			if move.To == Square(59) {
 				pos.swapSquares(Square(57), Square(60))
 				pos.Board[59] = ANoPiece()
-				*pos.PieceBitboard(Piece{Black, Rook}) ^= BBFromSquares(57, 60)
 				*pos.PieceBitboard(Piece{Black, King}) ^= BBFromSquares(59, 60)
 			}
 			if move.To == Square(63) {
 				pos.swapSquares(Square(64), Square(62))
 				pos.Board[63] = ANoPiece()
-				*pos.PieceBitboard(Piece{Black, Rook}) ^= BBFromSquares(64, 62)
 				*pos.PieceBitboard(Piece{Black, King}) ^= BBFromSquares(61, 62)
 			}
 		}

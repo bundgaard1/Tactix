@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestBitboardsTests(t *testing.T) {
+func TestBitboards(t *testing.T) {
 	var bb engine.Bitboard
 
 	for i := 1; i <= 64; i++ {
@@ -35,5 +35,4 @@ func TestBitboardsTests(t *testing.T) {
 	if count != 4 {
 		t.Errorf("expected 4 bit, got %d", count)
 	}
-
 }

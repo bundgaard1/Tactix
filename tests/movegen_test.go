@@ -8,6 +8,18 @@ import (
 )
 
 func TestPerftSuite(t *testing.T) {
+	for i, perftTest := range engine.PerftSuite {
+		pos := engine.FromFEN(perftTest.FEN)
+
+		nodesExplored := engine.Perft(&pos, perftTest.Depth)
+
+		if nodesExplored != perftTest.ExpectedNodes {
+			t.Error("wrong at ", i, " : ", nodesExplored, " (expected: ", perftTest.ExpectedNodes, ") \n")
+		}
+	}
+}
+
+func PerftWithBenchmark() {
 	totalNodes := 0
 
 	startTime := time.Now()
