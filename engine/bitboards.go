@@ -39,6 +39,10 @@ func (bitboard Bitboard) lsb() Square {
 	return Square(bits.TrailingZeros64(uint64(bitboard)))
 }
 
+func (bitboard *Bitboard) clearBit(sq Square) {
+	*bitboard ^= ^BBFromSquares(sq)
+}
+
 func (bitboard *Bitboard) Pop() Square {
 	if *bitboard == 0 {
 		panic("Pop called on empty bitboard,")

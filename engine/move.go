@@ -1,7 +1,9 @@
 package engine
 
-type MoveFlag int8
-type Square int8
+type (
+	MoveFlag int8
+	Square   int8
+)
 
 const (
 	NoFlag MoveFlag = iota

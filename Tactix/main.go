@@ -1,8 +1,6 @@
 package main
 
-import (
-	"tactix/cli"
-)
+import "tactix/cli"
 
 func main() {
 	cli.Run()
