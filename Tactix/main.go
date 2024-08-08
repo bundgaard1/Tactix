@@ -1,7 +1,9 @@
 package main
 
-func main() {
-	// cli.Run()
+import (
+	"tactix/cli"
+)
 
-	// piece := engine.Piece{Color: engine.Black, PieceType: engine.King}
+func main() {
+	cli.Run()
 }
