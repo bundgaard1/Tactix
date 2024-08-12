@@ -60,3 +60,20 @@ func who2move(c2m Color) int {
 	}
 	return -1
 }
+
+func PieceValue(piece PieceType) int {
+	switch piece {
+	case Pawn:
+		return PawnValue
+	case Knight:
+		return KnightValue
+	case Bishop:
+		return BishopValue
+	case Rook:
+		return RookValue
+	case Queen:
+		return QueenValue
+	default:
+		return 0
+	}
+}

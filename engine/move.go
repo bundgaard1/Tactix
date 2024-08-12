@@ -21,3 +21,7 @@ type Move struct {
 	To   Square
 	Flag MoveFlag
 }
+
+func (flag MoveFlag) IsPromotion() bool {
+	return flag == PromotionToQueen || flag == PromotionToKnight || flag == PromotionToRook || flag == PromotionToBishop
+}
