@@ -44,10 +44,9 @@ func mobilityScore(pos *Position) int {
 	c2m := pos.ColorToMove
 
 	pos.ColorToMove = White
-	whiteMobility := LegalMoves(pos).Count
-
+	whiteMobility := len(LegalMoves(pos))
 	pos.ColorToMove = Black
-	blackMobility := LegalMoves(pos).Count
+	blackMobility := len(LegalMoves(pos))
 
 	pos.ColorToMove = c2m
 

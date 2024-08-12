@@ -1,12 +1,14 @@
 package engine
 
+import "fmt"
+
 var movegenData struct {
 	// Bitboards
 	KingAttackedLine Bitboard
 	AttackedSquares  Bitboard
 	PinnedSquares    Bitboard
 
-	EnemyAllPossibleMoves MoveList
+	EnemyAllPossibleMoves *MoveList
 }
 
 func genMovegenData(pos *Position) {
@@ -32,36 +34,36 @@ func LegalMoves(pos *Position) MoveList {
 			kingSquare := pos.GetKingSquare(pos.ColorToMove)
 			KingAttackedLine := &movegenData.KingAttackedLine
 
-			for i := 0; i < allMoves.Count; i++ {
-				move := allMoves.Moves[i]
+			for i := 0; i < len(*allMoves); i++ {
+				move := (*allMoves)[i]
 				if move.From == kingSquare {
 					// King moves should be filtered from filterMovesToLegal
-					legalMoves.AddMove(move)
+					legalMoves.Append(move)
 				} else {
 					// Block the attack/ Capture the attacking piece
 					if KingAttackedLine.IsSet(move.To) {
-						legalMoves.AddMove(move)
+						legalMoves.Append(move)
 					}
 					// En passent check, very disgusting.
 					if move.Flag == EnPassentCapture && pos.EPFile == File(move.To) &&
 						((KingAttackedLine.IsSet(move.To-8) && pos.ColorToMove == White) ||
 							(KingAttackedLine.IsSet(move.To+8) && pos.ColorToMove == Black)) {
-						legalMoves.AddMove(move)
+						legalMoves.Append(move)
 					}
 				}
 			}
 		} else { // Two or more checks, Move the king to a safe square
 			kingMoves := genKingMoves(pos, pos.GetKingSquare(pos.ColorToMove), pos.Board[pos.GetKingSquare(pos.ColorToMove)])
 			legalKingMoves := filterMovesToLegal(pos, kingMoves)
-			legalMoves.AddMoves(legalKingMoves)
+			legalMoves.AppendList(legalKingMoves)
 		}
 	} else {
 		allMoves := GetAllPossibleMoves(pos)
-		legalMoves.AddMoves(filterMovesToLegal(pos, allMoves))
-		legalMoves.AddMoves(genCastlingMoves(pos, pos.GetKingSquare(pos.ColorToMove), pos.Board[pos.GetKingSquare(pos.ColorToMove)]))
+		legalMoves.AppendList(filterMovesToLegal(pos, allMoves))
+		legalMoves.AppendList(genCastlingMoves(pos, pos.GetKingSquare(pos.ColorToMove), pos.Board[pos.GetKingSquare(pos.ColorToMove)]))
 	}
 
-	if legalMoves.Count == 0 {
+	if len(legalMoves) == 0 {
 		if checks > 0 {
 			pos.Checkmate = true
 		} else {
@@ -75,12 +77,12 @@ func LegalMoves(pos *Position) MoveList {
 	return legalMoves
 }
 
-func filterMovesToLegal(pos *Position, moves MoveList) MoveList {
-	var legalMoves MoveList
+func filterMovesToLegal(pos *Position, moves *MoveList) *MoveList {
+	legalMoves := NewMoveList()
 
-	for i := 0; i < moves.Count; i++ {
-		if isMoveLegal(pos, moves.Moves[i]) {
-			legalMoves.AddMove(moves.Moves[i])
+	for i := 0; i < len(*moves); i++ {
+		if isMoveLegal(pos, (*moves)[i]) {
+			legalMoves.Append((*moves)[i])
 		}
 	}
 
@@ -111,8 +113,8 @@ func isMoveLegal(pos *Position, move Move) bool {
 
 // All Posible Moves, does check for pins.
 // No castling.
-func GetAllPossibleMoves(pos *Position) MoveList {
-	var moves MoveList
+func GetAllPossibleMoves(pos *Position) *MoveList {
+	moves := NewMoveList()
 
 	for sq := Square(1); sq <= 64; sq++ {
 		currPiece := pos.Board[sq]
@@ -122,13 +124,13 @@ func GetAllPossibleMoves(pos *Position) MoveList {
 
 		switch currPiece.PieceType {
 		case Pawn:
-			moves.AddMoves(genPawnMoves(pos, sq, currPiece))
+			moves.AppendList(genPawnMoves(pos, sq, currPiece))
 		case Knight:
-			moves.AddMoves(genKnightMoves(pos, sq, currPiece))
+			moves.AppendList(genKnightMoves(pos, sq, currPiece))
 		case Bishop, Queen, Rook:
-			moves.AddMoves(genSlidingMoves(pos, sq, currPiece))
+			moves.AppendList(genSlidingMoves(pos, sq, currPiece))
 		case King:
-			moves.AddMoves(genKingMoves(pos, sq, currPiece))
+			moves.AppendList(genKingMoves(pos, sq, currPiece))
 		default:
 			continue
 		}
@@ -137,53 +139,64 @@ func GetAllPossibleMoves(pos *Position) MoveList {
 	return moves
 }
 
-func genPawnMoves(pos *Position, square Square, piece Piece) MoveList {
-	var pawnMoveList MoveList
+func genPawnMoves(pos *Position, square Square, piece Piece) *MoveList {
+	pawnMoveList := NewMoveList()
 	var pawnDirection Square
-	if piece.Color == White {
+	switch piece.Color {
+	case White:
 		pawnDirection = 8
-	} else {
+	case Black:
 		pawnDirection = -8
+	default:
+		panic(fmt.Sprint("generating pawn moves for sq: ", square, " on ", pos))
 	}
 
 	// Move forward
+	if Rank(square) == 1 {
+		fmt.Println(square, piece)
+	}
 	if pos.Board[square+pawnDirection].PieceType == NoPiece {
-		pawnMoveList.AddMove(Move{From: square, To: square + pawnDirection, Flag: NoFlag})
+		pawnMoveList.Append(Move{From: square, To: square + pawnDirection, Flag: NoFlag})
 	}
 
 	// Push
 	push := square + 2*pawnDirection
-	if ((piece.Color == White && Rank(square) == 2) ||
-		(piece.Color == Black && Rank(square) == 7)) && pos.Board[square+pawnDirection].PieceType|pos.Board[push].PieceType == NoPiece {
-		pawnMoveList.AddMove(Move{From: square, To: push, Flag: PawnPush})
+	if (piece.Color == White && Rank(square) == 2) ||
+		(piece.Color == Black && Rank(square) == 7) {
+		allPiecesMask := pos.AllPieces()
+		if !allPiecesMask.IsSet(square+pawnDirection) && !allPiecesMask.IsSet(push) {
+			pawnMoveList.Append(Move{From: square, To: push, Flag: PawnPush})
+		}
 	}
 
 	// Attack
 	attackMoves := genPawnAttackMoves(square, piece)
-	for i := 0; i < attackMoves.Count; i++ {
-		if pos.Board[attackMoves.Moves[i].To].Color == piece.Color.opposite() {
-			pawnMoveList.AddMove(attackMoves.Moves[i])
+	for i := 0; i < len(*attackMoves); i++ {
+		m := (*attackMoves)[i]
+		if pos.Board[m.To].Color == piece.opposite() {
+			pawnMoveList.Append(m)
 		}
 	}
 
 	// En passent
 	if pos.EPFile != 0 && ((Rank(square) == 5 && piece.Color == White) || (Rank(square) == 4 && piece.Color == Black)) {
 		if File(square)-1 == pos.EPFile {
-			pawnMoveList.AddMove(Move{From: square, To: square + pawnDirection - 1, Flag: EnPassentCapture})
+			pawnMoveList.Append(Move{From: square, To: square + pawnDirection - 1, Flag: EnPassentCapture})
 		}
 		if File(square)+1 == pos.EPFile {
-			pawnMoveList.AddMove(Move{From: square, To: square + pawnDirection + 1, Flag: EnPassentCapture})
+			pawnMoveList.Append(Move{From: square, To: square + pawnDirection + 1, Flag: EnPassentCapture})
 		}
 	}
 	// Promotion - If we are at the end of the board, add all possible promotions
 	if (Rank(square) == 7 && piece.Color == White) || (Rank(square) == 2 && piece.Color == Black) {
-		countBefore := pawnMoveList.Count
+		countBefore := len(*pawnMoveList)
 		for i := 0; i < countBefore; i++ {
-			to := pawnMoveList.Moves[i].To
-			pawnMoveList.Moves[i].Flag = PromotionToQueen
-			pawnMoveList.AddMove(Move{square, to, PromotionToBishop})
-			pawnMoveList.AddMove(Move{square, to, PromotionToKnight})
-			pawnMoveList.AddMove(Move{square, to, PromotionToRook})
+			m := pawnMoveList.Get(i)
+			to := m.To
+			m.Flag = PromotionToQueen
+			pawnMoveList.Append(Move{square, to, PromotionToBishop})
+			pawnMoveList.Append(Move{square, to, PromotionToKnight})
+			pawnMoveList.Append(Move{square, to, PromotionToRook})
 		}
 	}
 
@@ -191,8 +204,8 @@ func genPawnMoves(pos *Position, square Square, piece Piece) MoveList {
 }
 
 // Does not check for promotion or if the attack has a target
-func genPawnAttackMoves(square Square, piece Piece) MoveList {
-	var pawnMoveList MoveList
+func genPawnAttackMoves(square Square, piece Piece) *MoveList {
+	pawnMoveList := NewMoveList()
 	var pawnDirection Square
 	if piece.Color == White {
 		pawnDirection = 8
@@ -202,10 +215,10 @@ func genPawnAttackMoves(square Square, piece Piece) MoveList {
 
 	// Attack
 	if File(square) != 1 {
-		pawnMoveList.AddMove(Move{From: square, To: square + pawnDirection - 1, Flag: NoFlag})
+		pawnMoveList.Append(Move{From: square, To: square + pawnDirection - 1, Flag: NoFlag})
 	}
 	if File(square) != 8 {
-		pawnMoveList.AddMove(Move{From: square, To: square + pawnDirection + 1, Flag: NoFlag})
+		pawnMoveList.Append(Move{From: square, To: square + pawnDirection + 1, Flag: NoFlag})
 	}
 
 	return pawnMoveList
@@ -213,7 +226,7 @@ func genPawnAttackMoves(square Square, piece Piece) MoveList {
 
 var knightMoveOffsets = [8]Square{-17, -15, -10, -6, 6, 10, 15, 17}
 
-func genKnightMoves(pos *Position, square Square, piece Piece) MoveList {
+func genKnightMoves(pos *Position, square Square, piece Piece) *MoveList {
 	var allowedMoves uint8 = 0b1111_1111
 	switch Rank(square) {
 	case 1:
@@ -236,11 +249,11 @@ func genKnightMoves(pos *Position, square Square, piece Piece) MoveList {
 		allowedMoves &= 0b0101_0101
 	}
 
-	var knightMoveList MoveList
+	knightMoveList := NewMoveList()
 
 	for i := 0; i < 8; i++ {
 		if ((allowedMoves>>i)&1) == 1 && (IgnoreFriendlyPieces || pos.Board[square+knightMoveOffsets[i]].Color != piece.Color) {
-			knightMoveList.AddMove(Move{From: square, To: square + knightMoveOffsets[i], Flag: NoFlag})
+			knightMoveList.Append(Move{From: square, To: square + knightMoveOffsets[i], Flag: NoFlag})
 		}
 	}
 	return knightMoveList
@@ -273,12 +286,12 @@ func computeSquaresToEdge() {
 	SqToEdgeComputed = true
 }
 
-func genSlidingMoves(pos *Position, square Square, piece Piece) MoveList {
+func genSlidingMoves(pos *Position, square Square, piece Piece) *MoveList {
 	if !SqToEdgeComputed {
 		computeSquaresToEdge()
 	}
 
-	var slidingMoveList MoveList
+	slidingMoveList := NewMoveList()
 
 	dirStartIndex, dirEndIndex := slidingStartAndEndIndex(piece.PieceType)
 
@@ -289,14 +302,14 @@ func genSlidingMoves(pos *Position, square Square, piece Piece) MoveList {
 			toColor := pos.Board[to].Color
 			if toColor == piece.Color {
 				if IgnoreFriendlyPieces {
-					slidingMoveList.AddMove(Move{From: square, To: to, Flag: NoFlag})
+					slidingMoveList.Append(Move{From: square, To: to, Flag: NoFlag})
 				}
 				break
 			}
 
-			slidingMoveList.AddMove(Move{From: square, To: to, Flag: NoFlag})
+			slidingMoveList.Append(Move{From: square, To: to, Flag: NoFlag})
 
-			if toColor == piece.Color.opposite() {
+			if toColor == piece.opposite() {
 				break
 			}
 		}
@@ -315,12 +328,12 @@ func slidingStartAndEndIndex(pieceType PieceType) (Square, Square) {
 	return 0, 8
 }
 
-func genKingMoves(pos *Position, square Square, piece Piece) MoveList {
+func genKingMoves(pos *Position, square Square, piece Piece) *MoveList {
 	if !SqToEdgeComputed {
 		computeSquaresToEdge()
 	}
 
-	var kingMoveList MoveList
+	kingMoveList := NewMoveList()
 
 	// Moving
 	for dirIndex := 0; dirIndex < 8; dirIndex++ {
@@ -333,44 +346,44 @@ func genKingMoves(pos *Position, square Square, piece Piece) MoveList {
 
 		if pieceOnTo.Color == piece.Color {
 			if IgnoreFriendlyPieces {
-				kingMoveList.AddMove(Move{From: square, To: to, Flag: NoFlag})
+				kingMoveList.Append(Move{From: square, To: to, Flag: NoFlag})
 			}
 			continue
 		}
 
-		kingMoveList.AddMove(Move{From: square, To: to, Flag: NoFlag})
+		kingMoveList.Append(Move{From: square, To: to, Flag: NoFlag})
 	}
 
 	return kingMoveList
 }
 
-func genCastlingMoves(pos *Position, square Square, piece Piece) MoveList {
-	var castlingMoves MoveList
+func genCastlingMoves(pos *Position, square Square, piece Piece) *MoveList {
+	castlingMoves := NewMoveList()
 
 	if squareUnderAttack(square) {
-		return MoveList{}
+		return NewMoveList()
 	}
 
 	wk, wq, bk, bq := pos.getCastlingRights()
-
+	freeSquares := pos.AllPieces() ^ FullBB
 	if square == Square(E1) && piece.Color == White {
-		if wk && pos.Board[F1].PieceType|pos.Board[G1].PieceType == NoPiece &&
+		if wk && freeSquares.IsSet(F1) && freeSquares.IsSet(G1) &&
 			!squareUnderAttack(F1) && !squareUnderAttack(G1) {
-			castlingMoves.AddMove(Move{From: square, To: square + 2, Flag: Castling})
+			castlingMoves.Append(Move{From: square, To: square + 2, Flag: Castling})
 		}
-		if wq && pos.Board[2].PieceType|pos.Board[3].PieceType|pos.Board[4].PieceType == NoPiece &&
+		if wq && freeSquares.IsSet(B1) && freeSquares.IsSet(C1) && freeSquares.IsSet(D1) &&
 			!squareUnderAttack(D1) && !squareUnderAttack(C1) {
-			castlingMoves.AddMove(Move{From: square, To: square - 2, Flag: Castling})
+			castlingMoves.Append(Move{From: square, To: square - 2, Flag: Castling})
 		}
 	}
 	if square == Square(E8) && piece.Color == Black {
-		if bk && pos.Board[F8].PieceType|pos.Board[G8].PieceType == NoPiece &&
+		if bk && freeSquares.IsSet(F8) && freeSquares.IsSet(G8) &&
 			!squareUnderAttack(F8) && !squareUnderAttack(G8) {
-			castlingMoves.AddMove(Move{From: square, To: square + 2, Flag: Castling})
+			castlingMoves.Append(Move{From: square, To: square + 2, Flag: Castling})
 		}
-		if bq && pos.Board[B8].PieceType|pos.Board[C8].PieceType|pos.Board[D8].PieceType == NoPiece &&
+		if bq && freeSquares.IsSet(B8) && freeSquares.IsSet(C8) && freeSquares.IsSet(D8) &&
 			!squareUnderAttack(D8) && !squareUnderAttack(C8) {
-			castlingMoves.AddMove(Move{From: square, To: square - 2, Flag: Castling})
+			castlingMoves.Append(Move{From: square, To: square - 2, Flag: Castling})
 		}
 	}
 
@@ -388,10 +401,11 @@ func numChecks(pos *Position) int {
 	count := 0
 	previousAttacker := Square(0) // The same attacker can't attack the king twice, this is such that a pawn can't attack the king twice from promotions
 
-	for i := 0; i < opponentMoves.Count; i++ {
-		if opponentMoves.Moves[i].To == kingSqaure && previousAttacker != opponentMoves.Moves[i].From {
+	for i := 0; i < len(*opponentMoves); i++ {
+		m := (*opponentMoves)[i]
+		if m.To == kingSqaure && previousAttacker != m.From {
 			count++
-			previousAttacker = opponentMoves.Moves[i].From
+			previousAttacker = m.From
 		}
 	}
 	return count
@@ -407,7 +421,7 @@ func squaresUnderAttackMask(pos *Position) Bitboard {
 		computeSquaresToEdge()
 	}
 
-	var opponentMoves MoveList
+	opponentMoves := NewMoveList()
 
 	kingpos := pos.GetKingSquare(pos.ColorToMove)
 	pos.Board[kingpos] = Piece{NoColor, NoPiece} // Remove the king from the board
@@ -421,13 +435,13 @@ func squaresUnderAttackMask(pos *Position) Bitboard {
 
 		switch currPiece.PieceType {
 		case Pawn:
-			opponentMoves.AddMoves(genPawnAttackMoves(sq, currPiece))
+			opponentMoves.AppendList(genPawnAttackMoves(sq, currPiece))
 		case Knight:
-			opponentMoves.AddMoves(genKnightMoves(pos, sq, currPiece))
+			opponentMoves.AppendList(genKnightMoves(pos, sq, currPiece))
 		case Bishop, Queen, Rook:
-			opponentMoves.AddMoves(genSlidingMoves(pos, sq, currPiece))
+			opponentMoves.AppendList(genSlidingMoves(pos, sq, currPiece))
 		case King:
-			opponentMoves.AddMoves(genKingMoves(pos, sq, currPiece))
+			opponentMoves.AppendList(genKingMoves(pos, sq, currPiece))
 		default:
 			continue
 		}
@@ -439,14 +453,14 @@ func squaresUnderAttackMask(pos *Position) Bitboard {
 
 	var attackedSquares Bitboard
 
-	for i := 0; i < opponentMoves.Count; i++ {
-		move := opponentMoves.Moves[i]
+	for i := 0; i < len(*opponentMoves); i++ {
+		move := (*opponentMoves)[i]
 		if pos.Board[move.From].PieceType == Pawn {
 			if File(move.From) != File(move.To) {
 				attackedSquares.Set(move.To)
 			}
 		} else {
-			attackedSquares.Set(opponentMoves.Moves[i].To)
+			attackedSquares.Set(move.To)
 		}
 	}
 	return attackedSquares
@@ -459,14 +473,15 @@ func kingAttackedMask(pos *Position) Bitboard {
 
 	var attackedSquares Bitboard
 
-	opponentMoves := &movegenData.EnemyAllPossibleMoves
+	opponentMoves := movegenData.EnemyAllPossibleMoves
 
 	// Figure out the attacker
 	var attackerSquare Square = 0
 
-	for i := 0; i < opponentMoves.Count; i++ {
-		if pos.Board[opponentMoves.Moves[i].To].PieceType == King {
-			attackerSquare = opponentMoves.Moves[i].From
+	for i := 0; i < len(*opponentMoves); i++ {
+		m := (*opponentMoves)[i]
+		if pos.Board[m.To].PieceType == King {
+			attackerSquare = m.From
 		}
 	}
 

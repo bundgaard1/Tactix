@@ -121,26 +121,10 @@ func flagForMove(pos *Position, move Move) MoveFlag {
 }
 
 func IsMoveValid(pos *Position, move Move) bool {
-	if move.From == 0 || move.To == 0 {
-		return false
-	}
-
-	if pos.Board[move.From].PieceType == NoPiece {
-		return false
-	}
-
-	if pos.Board[move.From].Color != pos.ColorToMove {
-		return false
-	}
-
-	if pos.Board[move.To].Color == pos.ColorToMove {
-		return false
-	}
-
 	// Check if the move is valid
 	moveList := LegalMoves(pos)
-	for i := 0; i < moveList.Count; i++ {
-		if moveList.Moves[i] == move {
+	for i := 0; i < len(moveList); i++ {
+		if moveList[i].From == move.From && moveList[i].To == move.To && moveList[i].Flag == moveList[i].Flag {
 			return true
 		}
 	}
@@ -170,4 +154,10 @@ func (m Move) UCIString() string {
 		strbuilder.WriteString("r")
 	}
 	return strbuilder.String()
+}
+
+func check(e error) {
+	if e != nil {
+		panic(e)
+	}
 }

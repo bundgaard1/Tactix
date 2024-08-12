@@ -43,13 +43,13 @@ func Perft(pos *Position, depth int) int {
 	moveList := LegalMoves(pos)
 
 	if depth == 1 {
-		return moveList.Count
+		return len(moveList)
 	}
 
-	for i := 0; i < moveList.Count; i++ {
-		pos.MakeMove(moveList.Moves[i])
+	for i := 0; i < len(moveList); i++ {
+		pos.MakeMove(moveList[i])
 		nodes += Perft(pos, depth-1)
-		pos.UndoMove(moveList.Moves[i])
+		pos.UndoMove(moveList[i])
 	}
 
 	return nodes
@@ -62,8 +62,8 @@ func PerftDivided(pos *Position, depth int) (string, int) {
 	totalNodes := 0
 	moveList := LegalMoves(pos)
 
-	for i := 0; i < moveList.Count; i++ {
-		move := moveList.Moves[i]
+	for i := 0; i < len(moveList); i++ {
+		move := moveList[i]
 		pos.MakeMove(move)
 		newNodes := Perft(pos, depth-1)
 		pos.UndoMove(move)

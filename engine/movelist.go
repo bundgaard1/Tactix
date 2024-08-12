@@ -1,30 +1,48 @@
 package engine
 
-const maxMoveList = 218
+import (
+	"fmt"
+	"strings"
+)
 
-type MoveList struct {
-	Moves [maxMoveList]Move
-	Count int
+type MoveList []Move
+
+const initialMoveListSize = 32
+
+func NewMoveList() *MoveList {
+	moveList := make(MoveList, 0, initialMoveListSize)
+	return &moveList
 }
 
-func (moveList *MoveList) AddMove(move Move) {
-	if moveList.Count < maxMoveList {
-		moveList.Moves[moveList.Count] = move
-		moveList.Count++
-	} else {
-		panic("MoveList.Count Limit reached, somehow")
+func (ml *MoveList) Append(moves ...Move) {
+	l := len(*ml)
+	if l+len(moves) > cap(*ml) {
+		newList := make(MoveList, (l+len(moves))*2)
+		copy(newList, *ml)
+		*ml = newList // Update the pointer to the new list
 	}
+	*ml = (*ml)[0 : l+len(moves)]
+	copy((*ml)[l:], moves)
 }
 
-func (moveList *MoveList) AddMoves(appendList MoveList) {
-	for i := 0; i < appendList.Count; i++ {
-		moveList.AddMove(appendList.Moves[i])
-	}
+func (ml *MoveList) Get(index int) *Move {
+	return &(*ml)[index]
 }
 
-func (MoveList *MoveList) Remove(index int) {
-	if index < MoveList.Count {
-		MoveList.Moves[index] = MoveList.Moves[MoveList.Count-1]
-		MoveList.Count--
+func (ml *MoveList) AppendList(append *MoveList) {
+	ml.Append((*append)...)
+}
+
+func (ml *MoveList) String() string {
+	var builder strings.Builder
+	builder.WriteString("Moves: ")
+	builder.WriteString(fmt.Sprintf("%d\n", len(*ml)))
+
+	for i := 0; i < len(*ml); i++ {
+		move := (*ml)[i]
+		builder.WriteString(move.UCIString())
+		builder.WriteString(" ")
 	}
+
+	return builder.String()
 }

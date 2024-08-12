@@ -13,14 +13,20 @@ type Search struct {
 	searchOver    bool
 	nodesSearched int
 	timer         Timer
+
+	openingBook OpeningBook
+	opening     bool
 }
 
 func NewSearch(pos *Position) (search Search) {
-	search.pos = *pos
-	search.searchOver = false
-	search.nodesSearched = 0
-	search.timer = NewTimer()
-	return search
+	return Search{
+		pos:           *pos,
+		searchOver:    false,
+		nodesSearched: 0,
+		timer:         NewTimer(),
+		openingBook:   *NewOpeningBook(),
+		opening:       true,
+	}
 }
 
 // Iterative deepening
@@ -53,8 +59,8 @@ func (search *Search) rootAlphaBeta(depth int) (Move, int) {
 	moves := LegalMoves(&search.pos)
 	search.orderMoves(&moves)
 
-	for i := 0; i < moves.Count; i++ {
-		move := moves.Moves[i]
+	for i := 0; i < len(moves); i++ {
+		move := moves[i]
 
 		search.pos.MakeMove(move)
 		score := -search.alphaBeta(-beta, -alpha, depth-1)
@@ -69,7 +75,6 @@ func (search *Search) rootAlphaBeta(depth int) (Move, int) {
 			alpha = score
 			bestMove = move
 		}
-
 	}
 
 	return bestMove, alpha
@@ -86,8 +91,8 @@ func (search *Search) alphaBeta(alpha, beta, depthLeft int) int {
 	moves := LegalMoves(&search.pos)
 	search.orderMoves(&moves)
 
-	for i := 0; i < moves.Count; i++ {
-		move := moves.Moves[i]
+	for i := 0; i < len(moves); i++ {
+		move := moves[i]
 
 		search.pos.MakeMove(move)
 		score := -search.alphaBeta(-beta, -alpha, depthLeft-1)
@@ -120,8 +125,8 @@ func (search *Search) quiesce(alpha, beta int) int {
 	moves := LegalMoves(&search.pos)
 	search.orderMoves(&moves)
 
-	for i := 0; i <= moves.Count; i++ {
-		move := moves.Moves[i]
+	for i := 0; i <= len(moves); i++ {
+		move := moves[i]
 		if !search.pos.isCapture(move) {
 			continue
 		}
@@ -150,25 +155,24 @@ func (pos *Position) isCapture(move Move) bool {
 func (search *Search) orderMoves(moves *MoveList) {
 	var scores []int
 
-	for i := 0; i < moves.Count; i++ {
-		scores = append(scores, scoreMove(&moves.Moves[i], &search.pos))
+	for i := 0; i < len(*moves); i++ {
+		scores = append(scores, scoreMove((*moves)[i], &search.pos))
 	}
 
 	// Sort Moves based on scores
 	// Better scores first
-	// (Simple selections sort)
-	for i := 0; i < moves.Count-1; i++ {
-		for j := i + 1; j < moves.Count; j++ {
+	for i := 0; i < len(*moves)-1; i++ {
+		for j := i + 1; j < len(*moves); j++ {
 			if scores[j] > scores[i] {
 				// swap
 				scores[j], scores[i] = scores[i], scores[j]
-				moves.Moves[j], moves.Moves[i] = moves.Moves[i], moves.Moves[j]
+				(*moves)[j], (*moves)[i] = (*moves)[i], (*moves)[j]
 			}
 		}
 	}
 }
 
-func scoreMove(move *Move, pos *Position) int {
+func scoreMove(move Move, pos *Position) int {
 	scoreGuess := 0
 
 	movePieceType := pos.Board[move.From].PieceType

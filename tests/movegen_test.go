@@ -10,6 +10,7 @@ import (
 func TestPerftSuite(t *testing.T) {
 	for i, perftTest := range engine.PerftSuite {
 		pos := engine.FromFEN(perftTest.FEN)
+		fmt.Println(engine.FEN(&pos))
 
 		nodesExplored := engine.Perft(&pos, perftTest.Depth)
 

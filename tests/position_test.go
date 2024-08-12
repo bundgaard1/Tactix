@@ -41,8 +41,8 @@ func TestPieceBitboardsMakeMove(t *testing.T) {
 
 		moves := engine.LegalMoves(&pos)
 
-		for i := 0; i < moves.Count; i++ {
-			move := moves.Moves[i]
+		for i := 0; i < len(moves); i++ {
+			move := moves[i]
 
 			pos.MakeMove(move)
 			result, piece := positionBitboardsCorrect(&pos)

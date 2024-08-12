@@ -43,7 +43,8 @@ type Position struct {
 	Ply            uint16
 
 	// History
-	prevStates [100]State
+	prevStates  [100]State
+	MoveHistory MoveList
 
 	// King positions
 	WhiteKing Square
@@ -54,34 +55,38 @@ type Position struct {
 	Stalemate bool
 
 	// Piece Bitboards
-	// 0-5 White pieces (P, N, B, R, K, Q)
-	// 6-11 Black pieces (P, N, B, R, K, Q)
-	pieceBitboards [12]Bitboard
+	// in White pieces (P, N, B, R, Q, K)
+	// 6-11 Black pieces (P, N, B, R, Q, K)
+	pieceBitboards [2][6]Bitboard
 }
 
 func (pos *Position) PieceBitboard(p Piece) *Bitboard {
-	index := int(p.Color)*6 + int(p.PieceType) - 7
-
-	return &pos.pieceBitboards[index]
+	return &pos.pieceBitboards[p.Color][p.PieceType]
 }
 
 func (pos *Position) ColorBitboard(c Color) Bitboard {
 	switch c {
 	case White:
-		return pos.pieceBitboards[0] | pos.pieceBitboards[1] | pos.pieceBitboards[2] | pos.pieceBitboards[3] | pos.pieceBitboards[4] | pos.pieceBitboards[5]
+		whiteBBs := pos.pieceBitboards[White]
+		return whiteBBs[0] | whiteBBs[1] | whiteBBs[2] | whiteBBs[3] | whiteBBs[4] | whiteBBs[5]
 	case Black:
-		return pos.pieceBitboards[6] | pos.pieceBitboards[7] | pos.pieceBitboards[8] | pos.pieceBitboards[9] | pos.pieceBitboards[10] | pos.pieceBitboards[11]
+		blackBBs := pos.pieceBitboards[Black]
+		return blackBBs[0] | blackBBs[1] | blackBBs[2] | blackBBs[3] | blackBBs[4] | blackBBs[5]
 	default:
 		return 0
 	}
 }
 
+func (pos *Position) AllPieces() Bitboard {
+	return pos.ColorBitboard(White) | pos.ColorBitboard(Black)
+}
+
 // Call this after Board has been setup
 func (pos *Position) InitPieceBitboards() {
 	for i := Square(1); i <= 64; i++ {
-		piece := pos.Board[i]
-		if piece.PieceType != NoPiece {
-			pos.PieceBitboard(piece).Set(i)
+		p := pos.Board[i]
+		if p.PieceType != NoPiece {
+			pos.pieceBitboards[p.Color][p.PieceType].Set(i)
 		}
 	}
 }
@@ -131,7 +136,6 @@ func (pos *Position) MakeMove(move Move) {
 	pos.Board[move.From] = Piece{NoColor, NoPiece}
 
 	// Update biboards
-
 	fromBB := BBFromSquares(move.From)
 	toBB := BBFromSquares(move.To)
 	fromToBB := fromBB | toBB

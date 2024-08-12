@@ -45,9 +45,16 @@ var PieceToFENChar = map[Color]map[PieceType]rune{
 	},
 }
 
+func NewPosition() (pos Position) {
+	for i := 1; i <= 64; i++ {
+		pos.Board[i] = ANoPiece()
+	}
+	return pos
+}
+
 // Should comply with FEN standard
 func FromFEN(fen string) Position {
-	var pos Position
+	pos := NewPosition()
 	fen = strings.TrimSpace(fen)
 	fenFields := strings.Split(fen, " ")
 
@@ -80,7 +87,6 @@ func FromFEN(fen string) Position {
 		default:
 			panic("Invalid FEN: board position.")
 		}
-
 	}
 
 	// Side to move

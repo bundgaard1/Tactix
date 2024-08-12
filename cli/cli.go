@@ -79,6 +79,9 @@ func (cli *Cli) handleCommand(command string, lexer *Lexer) {
 		fmt.Println(engine.Evaluate(&cli.board))
 	case "move", "m":
 		cli.moveCommand(lexer)
+	case "moves":
+		moves := engine.LegalMoves(&cli.board)
+		fmt.Println(moves.String())
 	case "position", "pos":
 		cli.positionCommand(lexer)
 	case "help", "h":

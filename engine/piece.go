@@ -4,23 +4,27 @@ import "fmt"
 
 const (
 	// Piece types
-	NoPiece PieceType = 0
-	Pawn    PieceType = 1
-	Knight  PieceType = 2
-	Bishop  PieceType = 3
-	Rook    PieceType = 4
+	Pawn    PieceType = 0
+	Knight  PieceType = 1
+	Bishop  PieceType = 2
+	Rook    PieceType = 3
+	Queen   PieceType = 4
 	King    PieceType = 5
-	Queen   PieceType = 6
+	NoPiece PieceType = 6
 
 	// Colors
-	NoColor Color = 0
-	White   Color = 1
-	Black   Color = 2
+	White   Color = 0
+	Black   Color = 1
+	NoColor Color = 2
 )
 
 type Piece struct {
 	Color
 	PieceType
+}
+
+func (piece *Piece) Unwrap() (Color, PieceType) {
+	return piece.Color, piece.PieceType
 }
 
 func (p Piece) String() string {
@@ -50,12 +54,14 @@ func (p PieceType) String() string {
 }
 
 func (c Color) String() string {
-	if c == White {
+	switch c {
+	case White:
 		return "w"
-	} else if c == Black {
+	case Black:
 		return "b"
+	default:
+		return "x"
 	}
-	return "x"
 }
 
 func (c Color) opposite() Color {
