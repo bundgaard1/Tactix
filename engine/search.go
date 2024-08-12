@@ -1,6 +1,8 @@
 package engine
 
-import "fmt"
+import (
+	"fmt"
+)
 
 const (
 	SearchDepth = 6
@@ -10,12 +12,14 @@ type Search struct {
 	pos           Position
 	searchOver    bool
 	nodesSearched int
+	timer         Timer
 }
 
 func NewSearch(pos *Position) (search Search) {
 	search.pos = *pos
 	search.searchOver = false
-
+	search.nodesSearched = 0
+	search.timer = NewTimer()
 	return search
 }
 
@@ -23,15 +27,18 @@ func NewSearch(pos *Position) (search Search) {
 func (search *Search) Search() Move {
 	bestMove, bestScore := Move{}, NegativeInfinity
 
-	for depth := 1; depth < SearchDepth; depth++ {
-		move, score := search.rootAlphaBeta(SearchDepth)
+	for depth := 1; depth <= SearchDepth; depth++ {
+		move, score := search.rootAlphaBeta(depth)
+
 		if search.searchOver {
 			return bestMove
 		}
 
-		bestMove, bestScore = move, score
+		if score > bestScore {
+			bestMove, bestScore = move, score
+		}
 
-		search.searchInfo(depth, bestScore)
+		search.searchInfo(depth, bestScore, bestMove)
 	}
 
 	return bestMove
@@ -39,6 +46,7 @@ func (search *Search) Search() Move {
 
 func (search *Search) rootAlphaBeta(depth int) (Move, int) {
 	alpha, beta := NegativeInfinity, PositiveInfinity
+	search.nodesSearched = 0
 
 	bestMove := Move{}
 
@@ -51,6 +59,7 @@ func (search *Search) rootAlphaBeta(depth int) (Move, int) {
 		score := -search.alphaBeta(-beta, -alpha, depth-1)
 		search.pos.UndoMove(move)
 
+		// fmt.Println(" Move: ", move.UCIString(), " Score: ", score)
 		if score == PositiveInfinity {
 			return move, beta
 		}
@@ -65,9 +74,9 @@ func (search *Search) rootAlphaBeta(depth int) (Move, int) {
 	return bestMove, alpha
 }
 
-// alpha is the score of the max-player
-// beta is the score of the min-player
 func (search *Search) alphaBeta(alpha, beta, depthLeft int) int {
+	search.nodesSearched++
+
 	if depthLeft == 0 {
 		return search.quiesce(alpha, beta)
 	}
@@ -95,6 +104,7 @@ func (search *Search) alphaBeta(alpha, beta, depthLeft int) int {
 }
 
 func (search *Search) quiesce(alpha, beta int) int {
+	search.nodesSearched++
 	stand_pat := Evaluate(&search.pos)
 
 	if stand_pat >= beta {
@@ -133,10 +143,11 @@ func (pos *Position) isCapture(move Move) bool {
 	return pos.Board[move.To].Color == pos.ColorToMove.opposite()
 }
 
-func (search *Search) searchInfo(depth, bestScore int) {
+func (search *Search) searchInfo(depth int, bestScore int, bestMove Move) {
 	fmt.Printf(
-		"info depth %d score cp %d nodes %d\n",
+		"info depth %d score %d nodes %d bestmove %s\n",
 		depth, bestScore,
 		search.nodesSearched,
+		bestMove.UCIString(),
 	)
 }

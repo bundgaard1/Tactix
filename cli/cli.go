@@ -64,7 +64,6 @@ func Run() {
 }
 
 func (cli *Cli) handleCommand(command string, lexer *Lexer) {
-
 	switch command {
 	case "quit":
 		os.Exit(0)
@@ -74,6 +73,10 @@ func (cli *Cli) handleCommand(command string, lexer *Lexer) {
 		cli.perftCommand(lexer)
 	case "bench":
 		cli.benchCommand(lexer)
+	case "go":
+		cli.goCommand(lexer)
+	case "eval":
+		fmt.Println(engine.Evaluate(&cli.board))
 	case "move", "m":
 		cli.moveCommand(lexer)
 	case "position", "pos":
@@ -86,7 +89,6 @@ func (cli *Cli) handleCommand(command string, lexer *Lexer) {
 }
 
 func (cli *Cli) moveCommand(lexer *Lexer) {
-
 	moveStr := lexer.GetNextToken()
 
 	move, err := engine.ParseUCIMove(&cli.board, moveStr.Literal)
@@ -104,14 +106,12 @@ func (cli *Cli) moveCommand(lexer *Lexer) {
 
 	cli.board.MakeMove(move)
 	fmt.Println(cli.board.String())
-
 }
 
 func (cli *Cli) perftCommand(lexer *Lexer) {
 	depthStr := lexer.GetNextToken()
 
 	depth, err := strconv.Atoi(depthStr.Literal)
-
 	if err != nil {
 		fmt.Println("Invalid depth")
 		return
@@ -131,6 +131,13 @@ func (cli *Cli) positionCommand(lexer *Lexer) {
 
 func (cli *Cli) benchCommand(lexer *Lexer) {
 	fmt.Println("Bench command")
+}
+
+func (cli *Cli) goCommand(lexer *Lexer) {
+	search := engine.NewSearch(&cli.board)
+
+	bestMove := search.Search()
+	fmt.Println("BestMove: ", bestMove.UCIString())
 }
 
 func (cli *Cli) helpCommand() {

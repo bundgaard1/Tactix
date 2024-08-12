@@ -25,7 +25,7 @@ func Evaluate(pos *Position) int {
 	materialScore := materialScore(pos)
 	mobilityScore := mobilityScore(pos)
 
-	eval = (materialScore + mobilityScore) * who2move(pos.ColorToMove)
+	eval = (materialScore + mobilityScore)
 
 	return eval
 }
