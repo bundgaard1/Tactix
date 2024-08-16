@@ -3,6 +3,7 @@ package engine
 import (
 	"fmt"
 	"strings"
+	"time"
 )
 
 type PerftTestData struct {
@@ -93,4 +94,32 @@ func DoPerftSuite() {
 
 		}
 	}
+}
+
+func PerftWithBenchmark() {
+	totalNodes := 0
+
+	startTime := time.Now()
+
+	for i, perftTest := range PerftSuite {
+		pos, err := FromFEN(perftTest.FEN)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		nodesExplored := Perft(pos, perftTest.Depth)
+		totalNodes += nodesExplored
+
+		fmt.Print("Test ", i, ": ", nodesExplored, " ")
+		if nodesExplored == perftTest.ExpectedNodes {
+			fmt.Print("check \n")
+		} else {
+			fmt.Print("wrong (expected ", perftTest.ExpectedNodes, ")\n")
+		}
+	}
+	duration := time.Since(startTime)
+	fmt.Printf(("\n"))
+	fmt.Printf("Nodes : %d \n", totalNodes)
+	fmt.Printf("Time  : %v \n", duration)
+	fmt.Printf("Speed : %.2f MN/s \n", float64(totalNodes)/duration.Seconds()/1_000_000)
 }

@@ -37,15 +37,18 @@ func TestPieceBitboardsFromStart(t *testing.T) {
 func TestPieceBitboardsMakeMove(t *testing.T) {
 	for _, perftTest := range engine.PerftSuite {
 
-		pos := engine.FromFEN(perftTest.FEN)
+		pos, err := engine.FromFEN(perftTest.FEN)
+		if err != nil {
+			t.Error(err)
+		}
 
-		moves := engine.LegalMoves(&pos)
+		moves := engine.LegalMoves(pos)
 
 		for i := 0; i < len(moves); i++ {
 			move := moves[i]
 
 			pos.MakeMove(move)
-			result, piece := positionBitboardsCorrect(&pos)
+			result, piece := positionBitboardsCorrect(pos)
 			if !result {
 				fmt.Print(pos.String())
 				fmt.Print(piece.String(), " : ", fmt.Sprintf(" %b \n", *pos.PieceBitboard(piece)))
