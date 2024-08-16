@@ -2,15 +2,20 @@ package engine
 
 import "fmt"
 
+type (
+	Color int8
+	PType int8
+)
+
 const (
 	// Piece types
-	Pawn    PieceType = 0
-	Knight  PieceType = 1
-	Bishop  PieceType = 2
-	Rook    PieceType = 3
-	Queen   PieceType = 4
-	King    PieceType = 5
-	NoPiece PieceType = 6
+	Pawn    PType = 0
+	Knight  PType = 1
+	Bishop  PType = 2
+	Rook    PType = 3
+	Queen   PType = 4
+	King    PType = 5
+	NoPiece PType = 6
 
 	// Colors
 	White   Color = 0
@@ -20,22 +25,22 @@ const (
 
 type Piece struct {
 	Color
-	PieceType
+	PType
 }
 
-func (piece *Piece) Unwrap() (Color, PieceType) {
-	return piece.Color, piece.PieceType
+func (piece *Piece) Unwrap() (Color, PType) {
+	return piece.Color, piece.PType
 }
 
 func (p Piece) String() string {
-	return fmt.Sprintf("%s%s", p.Color.String(), p.PieceType.String())
+	return fmt.Sprintf("%s%s", p.Color.String(), p.PType.String())
 }
 
 func (p Piece) Equal(other Piece) bool {
-	return p.Color == other.Color && p.PieceType == other.PieceType
+	return p.Color == other.Color && p.PType == other.PType
 }
 
-func (p PieceType) String() string {
+func (p PType) String() string {
 	switch p {
 	case Pawn:
 		return "P"
@@ -75,11 +80,11 @@ func (c Color) opposite() Color {
 	}
 }
 
-func WhitePiece(p PieceType) Piece {
+func WhitePiece(p PType) Piece {
 	return Piece{White, p}
 }
 
-func BlackPiece(p PieceType) Piece {
+func BlackPiece(p PType) Piece {
 	return Piece{Black, p}
 }
 

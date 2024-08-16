@@ -77,9 +77,13 @@ func PerftDivided(pos *Position, depth int) (string, int) {
 
 func DoPerftSuite() {
 	for i, perftTest := range PerftSuite {
-		pos := FromFEN(perftTest.FEN)
+		pos, err := FromFEN(perftTest.FEN)
+		if err != nil {
+			fmt.Println("Invalid FEN")
+			continue
+		}
 
-		nodesExplored := Perft(&pos, perftTest.Depth)
+		nodesExplored := Perft(pos, perftTest.Depth)
 
 		fmt.Print("Test ", i, ": ", nodesExplored, " ")
 		if nodesExplored == perftTest.ExpectedNodes {

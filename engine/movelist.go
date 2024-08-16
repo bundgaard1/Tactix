@@ -29,6 +29,16 @@ func (ml *MoveList) Get(index int) *Move {
 	return &(*ml)[index]
 }
 
+func (ml *MoveList) Pop() Move {
+	l := len(*ml)
+	if l == 0 {
+		return Move{}
+	}
+	move := (*ml)[l-1]
+	*ml = (*ml)[0 : l-1]
+	return move
+}
+
 func (ml *MoveList) AppendList(append *MoveList) {
 	ml.Append((*append)...)
 }

@@ -98,13 +98,13 @@ func isMoveLegal(pos *Position, move Move) bool {
 	}
 	// Pinned Piece
 	pinnedSquares := &movegenData.PinnedSquares
-	if piece.PieceType != King && pinnedSquares.IsSet(move.From) && !pinnedSquares.IsSet(move.To) {
+	if piece.PType != King && pinnedSquares.IsSet(move.From) && !pinnedSquares.IsSet(move.To) {
 		return false
 	}
 
 	// King cant move to attacked square
 
-	if piece.PieceType == King && movegenData.AttackedSquares.IsSet(move.To) {
+	if piece.PType == King && movegenData.AttackedSquares.IsSet(move.To) {
 		return false
 	}
 
@@ -122,7 +122,7 @@ func GetAllPossibleMoves(pos *Position) *MoveList {
 			continue
 		}
 
-		switch currPiece.PieceType {
+		switch currPiece.PType {
 		case Pawn:
 			moves.AppendList(genPawnMoves(pos, sq, currPiece))
 		case Knight:
@@ -155,7 +155,7 @@ func genPawnMoves(pos *Position, square Square, piece Piece) *MoveList {
 	if Rank(square) == 1 {
 		fmt.Println(square, piece)
 	}
-	if pos.Board[square+pawnDirection].PieceType == NoPiece {
+	if pos.Board[square+pawnDirection].PType == NoPiece {
 		pawnMoveList.Append(Move{From: square, To: square + pawnDirection, Flag: NoFlag})
 	}
 
@@ -293,7 +293,7 @@ func genSlidingMoves(pos *Position, square Square, piece Piece) *MoveList {
 
 	slidingMoveList := NewMoveList()
 
-	dirStartIndex, dirEndIndex := slidingStartAndEndIndex(piece.PieceType)
+	dirStartIndex, dirEndIndex := slidingStartAndEndIndex(piece.PType)
 
 	for dirIndex := dirStartIndex; dirIndex < dirEndIndex; dirIndex++ {
 		for i := int8(1); i <= numSquaresToEdge[square][dirIndex]; i++ {
@@ -318,7 +318,7 @@ func genSlidingMoves(pos *Position, square Square, piece Piece) *MoveList {
 	return slidingMoveList
 }
 
-func slidingStartAndEndIndex(pieceType PieceType) (Square, Square) {
+func slidingStartAndEndIndex(pieceType PType) (Square, Square) {
 	if pieceType == Bishop {
 		return 4, 8
 	}
@@ -433,7 +433,7 @@ func squaresUnderAttackMask(pos *Position) Bitboard {
 			continue
 		}
 
-		switch currPiece.PieceType {
+		switch currPiece.PType {
 		case Pawn:
 			opponentMoves.AppendList(genPawnAttackMoves(sq, currPiece))
 		case Knight:
@@ -455,7 +455,7 @@ func squaresUnderAttackMask(pos *Position) Bitboard {
 
 	for i := 0; i < len(*opponentMoves); i++ {
 		move := (*opponentMoves)[i]
-		if pos.Board[move.From].PieceType == Pawn {
+		if pos.Board[move.From].PType == Pawn {
 			if File(move.From) != File(move.To) {
 				attackedSquares.Set(move.To)
 			}
@@ -480,7 +480,7 @@ func kingAttackedMask(pos *Position) Bitboard {
 
 	for i := 0; i < len(*opponentMoves); i++ {
 		m := (*opponentMoves)[i]
-		if pos.Board[m.To].PieceType == King {
+		if pos.Board[m.To].PType == King {
 			attackerSquare = m.From
 		}
 	}
@@ -493,12 +493,12 @@ func kingAttackedMask(pos *Position) Bitboard {
 
 	currPiece := pos.Board[attackerSquare]
 
-	if currPiece.PieceType == Pawn || currPiece.PieceType == Knight {
+	if currPiece.PType == Pawn || currPiece.PType == Knight {
 		return attackedSquares
 	}
 
 	// Figure out the path to the king
-	dirStartIndex, dirEndIndex := slidingStartAndEndIndex(currPiece.PieceType)
+	dirStartIndex, dirEndIndex := slidingStartAndEndIndex(currPiece.PType)
 
 	for dirIndex := dirStartIndex; dirIndex < dirEndIndex; dirIndex++ {
 		found := false
@@ -535,11 +535,11 @@ func pinnedSquaresMask(pos *Position) Bitboard {
 	for sq := Square(1); sq <= 64; sq++ {
 		currPiece := pos.Board[sq]
 
-		if currPiece.PieceType == NoPiece || currPiece.Color == pos.ColorToMove || currPiece.PieceType == Pawn || currPiece.PieceType == Knight || currPiece.PieceType == King {
+		if currPiece.PType == NoPiece || currPiece.Color == pos.ColorToMove || currPiece.PType == Pawn || currPiece.PType == Knight || currPiece.PType == King {
 			continue
 		}
 
-		dirStartIndex, dirEndIndex := slidingStartAndEndIndex(currPiece.PieceType)
+		dirStartIndex, dirEndIndex := slidingStartAndEndIndex(currPiece.PType)
 		isEnPassantRelevant := pos.EPFile != 0 && dirStartIndex == 0 && ((Rank(sq) == 5 && currPiece.Color == Black) || (Rank(sq) == 4 && currPiece.Color == White)) && Rank(pos.GetKingSquare(pos.ColorToMove)) == Rank(sq)
 
 		for dirIndex := dirStartIndex; dirIndex < dirEndIndex; dirIndex++ {
@@ -574,9 +574,9 @@ func pinnedSquaresMask(pos *Position) Bitboard {
 				} else { // En passant relevant
 					// We have to check that there is exacly a white pawn and a black pawn on the same rank next to each other
 
-					if pos.Board[to].PieceType == Pawn {
+					if pos.Board[to].PType == Pawn {
 						nextSquare := to + directionOffsets[dirIndex]
-						if pos.Board[nextSquare].PieceType == Pawn && pos.Board[nextSquare].Color != pos.Board[to].Color {
+						if pos.Board[nextSquare].PType == Pawn && pos.Board[nextSquare].Color != pos.Board[to].Color {
 							whiteAndBlackPawnNextToEachOther = int(nextSquare)
 							i++ // Skip the next square, because there is a pawn there, we know
 						}
@@ -593,7 +593,7 @@ func pinnedSquaresMask(pos *Position) Bitboard {
 						}
 
 						break
-					} else if pos.Board[to].PieceType != NoPiece {
+					} else if pos.Board[to].PType != NoPiece {
 						break
 					}
 				}

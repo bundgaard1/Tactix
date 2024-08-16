@@ -125,7 +125,7 @@ func (search *Search) quiesce(alpha, beta int) int {
 	moves := LegalMoves(&search.pos)
 	search.orderMoves(&moves)
 
-	for i := 0; i <= len(moves); i++ {
+	for i := 0; i < len(moves); i++ {
 		move := moves[i]
 		if !search.pos.isCapture(move) {
 			continue
@@ -175,8 +175,8 @@ func (search *Search) orderMoves(moves *MoveList) {
 func scoreMove(move Move, pos *Position) int {
 	scoreGuess := 0
 
-	movePieceType := pos.Board[move.From].PieceType
-	capturedPieceType := pos.Board[move.To].PieceType
+	movePieceType := pos.Board[move.From].PType
+	capturedPieceType := pos.Board[move.To].PType
 
 	if capturedPieceType != NoPiece {
 		scoreGuess += 10*PieceValue(capturedPieceType) - PieceValue(movePieceType)

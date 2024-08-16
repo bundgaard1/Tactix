@@ -19,7 +19,7 @@ func newNode(move string) *obNode {
 	}
 }
 
-func (bn *obNode) contains(move string) (bool, *obNode) {
+func (bn *obNode) Contains(move string) (bool, *obNode) {
 	for _, child := range bn.children {
 		if child.uciMove == move {
 			return true, child
@@ -29,7 +29,7 @@ func (bn *obNode) contains(move string) (bool, *obNode) {
 }
 
 func (bn *obNode) addChild(move string) *obNode {
-	if exists, node := bn.contains(move); exists {
+	if exists, node := bn.Contains(move); exists {
 		return node
 	}
 	nn := newNode(move)
@@ -41,15 +41,13 @@ func (bn *obNode) addChild(move string) *obNode {
 
 type OpeningBook struct {
 	Root *obNode
-	Curr *obNode
 }
 
 func NewOpeningBook() *OpeningBook {
 	ob := OpeningBook{}
 	ob.Root = newNode("ROOT")
-	ob.Curr = ob.Root
 
-	dat, err := os.Open("opening_book/openings.txt")
+	dat, err := os.Open("resources/book_openings.txt")
 	check(err)
 	reader := bufio.NewReader(dat)
 
@@ -72,6 +70,37 @@ func NewOpeningBook() *OpeningBook {
 	return &ob
 }
 
+func (ob *OpeningBook) GetBookMove(pos *Position) Move {
+	curr := ob.Root
+	moves := &pos.MoveHistory
+	for _, move := range *moves {
+		if exists, node := curr.Contains(move.UCIString()); exists {
+			curr = node
+		} else {
+			break
+		}
+	}
+	if len(curr.children) == 0 {
+		panic("No book move found")
+	}
+	m, err := ParseUCIMove(pos, curr.children[0].uciMove)
+	check(err)
+
+	return m
+}
+
+func (ob *OpeningBook) InBook(moves *MoveList) bool {
+	curr := ob.Root
+	for _, move := range *moves {
+		if exists, node := curr.Contains(move.UCIString()); exists {
+			curr = node
+		} else {
+			return false
+		}
+	}
+	return !(len(curr.children) == 0)
+}
+
 func (ob *OpeningBook) String() string {
 	return ob.Root.String()
 }
@@ -92,13 +121,17 @@ func (bn *obNode) String() string {
 	var builder strings.Builder
 
 	builder.WriteString(bn.uciMove)
-	builder.WriteString("\n")
 	indent += 1
-	fmt.Println(indent)
-	for i, child := range bn.children {
-		builder.WriteString(strings.Repeat(" ", indent))
-		builder.WriteString(fmt.Sprint(i+1, ": "))
-		builder.WriteString(child.String())
+	builder.WriteString(fmt.Sprint(" "))
+	if len(bn.children) == 1 {
+		builder.WriteString(bn.children[0].String())
+	} else {
+		for i, child := range bn.children {
+			builder.WriteString("\n")
+			builder.WriteString(strings.Repeat(" ", indent*5))
+			builder.WriteString(fmt.Sprintf("%d. ", i+1))
+			builder.WriteString(child.String())
+		}
 	}
 	indent -= 1
 	return builder.String()

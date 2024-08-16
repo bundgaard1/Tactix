@@ -23,7 +23,7 @@ var FENCharToPiece = map[rune]Piece{
 	'k': {Black, King},
 }
 
-var PieceToFENChar = map[Color]map[PieceType]rune{
+var PieceToFENChar = map[Color]map[PType]rune{
 	NoColor: {
 		NoPiece: ' ',
 	},
@@ -45,21 +45,19 @@ var PieceToFENChar = map[Color]map[PieceType]rune{
 	},
 }
 
-func NewPosition() (pos Position) {
+// Should comply with FEN standard
+func FromFEN(fen string) (*Position, error) {
+	var pos Position
+
 	for i := 1; i <= 64; i++ {
 		pos.Board[i] = ANoPiece()
 	}
-	return pos
-}
 
-// Should comply with FEN standard
-func FromFEN(fen string) Position {
-	pos := NewPosition()
 	fen = strings.TrimSpace(fen)
 	fenFields := strings.Split(fen, " ")
 
 	if len(fenFields) < 4 {
-		panic("Not 6 fields in FEN-string, got " + fmt.Sprint(len(fenFields)))
+		return nil, fmt.Errorf("Invalid FEN: not enough fields.")
 	}
 
 	rank := 8
@@ -75,7 +73,7 @@ func FromFEN(fen string) Position {
 			sq := DeriveSquare(file, rank)
 			pos.Board[sq] = piece
 			file++
-			if piece.PieceType == King {
+			if piece.PType == King {
 				if piece.Color == White {
 					pos.WhiteKing = sq
 				} else {
@@ -85,7 +83,7 @@ func FromFEN(fen string) Position {
 		case '1', '2', '3', '4', '5', '6', '7', '8':
 			file += int(char - '0')
 		default:
-			panic("Invalid FEN: board position.")
+			return nil, fmt.Errorf("Invalid FEN: board position.")
 		}
 	}
 
@@ -96,7 +94,7 @@ func FromFEN(fen string) Position {
 	} else if fenFields[1] == "b" {
 		pos.ColorToMove = Black
 	} else {
-		panic("Invalid FEN: side to move.")
+		return nil, fmt.Errorf("Invalid FEN: side to move.")
 	}
 
 	// Castling ability
@@ -128,7 +126,7 @@ func FromFEN(fen string) Position {
 	if len(fenFields) > 4 {
 		hc, err := strconv.Atoi(fenFields[4])
 		if err != nil {
-			panic("Invalid FEN: halfmove clock.")
+			return nil, fmt.Errorf("Invalid FEN: halfmove clock. \n" + err.Error())
 		}
 		pos.Rule50 = int8(hc)
 	} else {
@@ -139,7 +137,7 @@ func FromFEN(fen string) Position {
 	if len(fenFields) > 5 {
 		fmc, err := strconv.Atoi(fenFields[5])
 		if err != nil {
-			panic("Invalid FEN: fullmove counter. \n" + err.Error())
+			return nil, fmt.Errorf("Invalid FEN: fullmove counter. \n" + err.Error())
 		}
 		pos.Ply = uint16(fmc)
 	} else {
@@ -151,7 +149,7 @@ func FromFEN(fen string) Position {
 
 	pos.InitPieceBitboards()
 
-	return pos
+	return &pos, nil
 }
 
 // Should comply with FEN standard
@@ -163,14 +161,14 @@ func FEN(pos *Position) string {
 		empty := 0
 		for file := 1; file <= 8; file++ {
 			piece := pos.Board[(rank-1)*8+file]
-			if piece.PieceType == NoPiece {
+			if piece.PType == NoPiece {
 				empty++
 			} else {
 				if empty > 0 {
 					fen.WriteString(fmt.Sprint(empty))
 					empty = 0
 				}
-				fen.WriteRune(PieceToFENChar[piece.Color][piece.PieceType])
+				fen.WriteRune(PieceToFENChar[piece.Color][piece.PType])
 			}
 		}
 		if empty > 0 {

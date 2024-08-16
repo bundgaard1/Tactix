@@ -60,7 +60,7 @@ func who2move(c2m Color) int {
 	return -1
 }
 
-func PieceValue(piece PieceType) int {
+func PieceValue(piece PType) int {
 	switch piece {
 	case Pawn:
 		return PawnValue

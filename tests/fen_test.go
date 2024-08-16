@@ -55,11 +55,11 @@ func TestFromFEN1(t *testing.T) {
 		t.Errorf("Ply is incorrect")
 	}
 
-	if pos.Board[engine.A1].PieceType != engine.Rook || pos.Board[engine.A1].Color != engine.White {
+	if pos.Board[engine.A1].PType != engine.Rook || pos.Board[engine.A1].Color != engine.White {
 		t.Errorf("A1 is incorrect")
 	}
 
-	if pos.Board[engine.B1].PieceType != engine.Knight || pos.Board[engine.B1].Color != engine.White {
+	if pos.Board[engine.B1].PType != engine.Knight || pos.Board[engine.B1].Color != engine.White {
 		t.Errorf("B1 is incorrect")
 	}
 }

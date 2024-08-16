@@ -90,8 +90,8 @@ func ParseUCIMove(pos *Position, uciMove string) (Move, error) {
 
 // Promotions are handled
 func flagForMove(pos *Position, move Move) MoveFlag {
-	if pos.Board[move.From].PieceType == Pawn {
-		if pos.Board[move.To].PieceType == NoPiece {
+	if pos.Board[move.From].PType == Pawn {
+		if pos.Board[move.To].PType == NoPiece {
 			if File(move.To) == pos.EPFile {
 				return EnPassentCapture
 			}
@@ -102,7 +102,7 @@ func flagForMove(pos *Position, move Move) MoveFlag {
 		if Rank(move.To) == 1 || Rank(move.To) == 8 {
 			return PromotionToQueen
 		}
-	} else if pos.Board[move.From].PieceType == King {
+	} else if pos.Board[move.From].PType == King {
 		if move.From == E1 && move.To == G1 {
 			return Castling
 		}
