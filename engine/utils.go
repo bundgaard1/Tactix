@@ -143,6 +143,7 @@ func (m Move) UCIString() string {
 	var strbuilder strings.Builder
 
 	strbuilder.WriteString(fmt.Sprintf("%c%d%c%d", FileRune[File(m.From)], Rank(m.From), FileRune[File(m.To)], Rank(m.To)))
+
 	switch m.Flag {
 	case PromotionToQueen:
 		strbuilder.WriteString("q")
@@ -153,6 +154,7 @@ func (m Move) UCIString() string {
 	case PromotionToRook:
 		strbuilder.WriteString("r")
 	}
+
 	return strbuilder.String()
 }
 

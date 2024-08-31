@@ -22,16 +22,15 @@ const (
 	//================================\\
 	`
 
-	HelpMessage = `
-	Commands:
-	  uci - Start th UCI protocol
-	  d/print - Display the current board
-	  move <move> - Make a move
-	  perft <depth> - Run perft to a certain depth
-	  position <fen> - Set the board to a fen string
-	  help - Print this help message
-	  quit - Exit the program
-	`
+	HelpMessage = `	Commands:
+	uci - Start th UCI protocol
+	d/print - Display the current board
+	move <move> - Make a move
+	perft <depth> - Run perft to a certain depth
+	position <fen> - Set the board to a fen string
+	help - Print this help message
+	quit - Exit the program
+`
 )
 
 type Communication struct {
@@ -41,11 +40,12 @@ type Communication struct {
 }
 
 func NewComms() *Communication {
-	return &Communication{
+	com := Communication{
 		pos:    FromStandardStartingPosition(),
 		reader: bufio.NewReader(os.Stdin),
-		uci:    NewUCI(FromStandardStartingPosition()),
 	}
+	com.uci = NewUCI(com.pos)
+	return &com
 }
 
 func RunCommLoop() {
@@ -76,7 +76,7 @@ func (comm *Communication) handleCommand(message string) {
 
 	switch fields[0] {
 	// UCI commands
-	case "uci", "go", "position":
+	case "uci", "isready", "setoption", "register", "ucinewgame", "go", "position", "stop", "ponderhit":
 		comm.uci.handleUCICommand(message)
 	// Custom commands
 	case "d", "print":
@@ -101,6 +101,10 @@ func (comm *Communication) handleCommand(message string) {
 
 func (comm *Communication) moveCommand(message string) {
 	msgParts := strings.Fields(message)
+	if len(msgParts) < 2 {
+		fmt.Println("Invalid move command")
+		return
+	}
 
 	move, err := ParseUCIMove(comm.pos, msgParts[1])
 	if err != nil {
@@ -116,7 +120,6 @@ func (comm *Communication) moveCommand(message string) {
 	}
 
 	comm.pos.MakeMove(move)
-	fmt.Println(comm.pos.String())
 }
 
 func (comm *Communication) perftCommand(message string) {
@@ -132,13 +135,6 @@ func (comm *Communication) perftCommand(message string) {
 
 	fmt.Println(summary)
 	fmt.Println("Total nodes: ", nodes)
-}
-
-func (comm *Communication) goCommand(message string) {
-	search := NewSearch(comm.pos)
-
-	bestMove := search.Search()
-	fmt.Println("BestMove: ", bestMove.UCIString())
 }
 
 func (comm *Communication) helpCommand() {

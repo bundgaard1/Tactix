@@ -9,35 +9,33 @@ const (
 )
 
 type Search struct {
-	pos           Position
-	searchOver    bool
-	nodesSearched int
-	timer         Timer
+	pos        Position
+	SearchOver bool
+	BestMove   Move
 
-	openingBook OpeningBook
-	opening     bool
+	nodesSearched int
+
+	timer Timer
 }
 
 func NewSearch(pos *Position) (search Search) {
 	return Search{
 		pos:           *pos,
-		searchOver:    false,
+		SearchOver:    false,
+		BestMove:      NilMove(),
 		nodesSearched: 0,
 		timer:         NewTimer(),
-		openingBook:   *NewOpeningBook(),
-		opening:       true,
 	}
 }
 
-// Iterative deepening
-func (search *Search) Search() Move {
+func (search *Search) Search() {
 	bestMove, bestScore := Move{}, NegativeInfinity
 
 	for depth := 1; depth <= SearchDepth; depth++ {
 		move, score := search.rootAlphaBeta(depth)
 
-		if search.searchOver {
-			return bestMove
+		if search.SearchOver {
+			search.BestMove = bestMove
 		}
 
 		if score > bestScore {
@@ -47,7 +45,7 @@ func (search *Search) Search() Move {
 		search.searchInfo(depth, bestScore, bestMove)
 	}
 
-	return bestMove
+	search.BestMove = bestMove
 }
 
 func (search *Search) rootAlphaBeta(depth int) (Move, int) {

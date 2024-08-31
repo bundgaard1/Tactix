@@ -39,7 +39,7 @@ type Position struct {
 
 	// History
 	prevStates  [100]State
-	MoveHistory MoveList
+	MoveHistory *MoveList
 
 	// King positions
 	WhiteKing Square
@@ -53,6 +53,19 @@ type Position struct {
 	// in White pieces (P, N, B, R, Q, K)
 	// 6-11 Black pieces (P, N, B, R, Q, K)
 	pieceBitboards [2][6]Bitboard
+}
+
+func (pos *Position) PrintHistory() {
+	fmt.Println(pos.MoveHistory)
+}
+
+func NewPosition() *Position {
+	pos := &Position{
+		ColorToMove: White,
+		Board:       [65]Piece{},
+		MoveHistory: NewMoveList(),
+	}
+	return pos
 }
 
 func (pos *Position) PieceBitboard(p Piece) *Bitboard {

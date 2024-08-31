@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"strings"
 )
@@ -15,7 +16,8 @@ type obNode struct {
 
 func newNode(move string) *obNode {
 	return &obNode{
-		uciMove: move,
+		uciMove:  move,
+		children: make([]*obNode, 0),
 	}
 }
 
@@ -70,9 +72,10 @@ func NewOpeningBook() *OpeningBook {
 	return &ob
 }
 
+// Can be used to get a move from the opening book, only call if InBook returns true
 func (ob *OpeningBook) GetBookMove(pos *Position) Move {
 	curr := ob.Root
-	moves := &pos.MoveHistory
+	moves := pos.MoveHistory
 	for _, move := range *moves {
 		if exists, node := curr.Contains(move.UCIString()); exists {
 			curr = node
@@ -80,11 +83,17 @@ func (ob *OpeningBook) GetBookMove(pos *Position) Move {
 			break
 		}
 	}
-	if len(curr.children) == 0 {
-		panic("No book move found")
+
+	for i, child := range curr.children {
+		fmt.Printf("%d: %s\n", i, child.uciMove)
 	}
-	m, err := ParseUCIMove(pos, curr.children[0].uciMove)
-	check(err)
+
+	mIdx := rand.Int() % (len(curr.children))
+	m, err := ParseUCIMove(pos, curr.children[mIdx].uciMove)
+	if err != nil {
+		fmt.Printf("%+v  %+v \n", mIdx, len(curr.children))
+		panic("invalid move, tried to parse: " + curr.children[mIdx].uciMove)
+	}
 
 	return m
 }

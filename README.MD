@@ -10,8 +10,3 @@ Running the enigne provides a simple command line interface to interact with the
 To get started, clone the repository and run `go run Tactix/main.go` to start the engine.
 
 The engine is not UCI compatible yet. Type `help` to see the available commands.
-
-## References
-
-- [Blunder](https://github.com/algerbrex/blunder)
-- [Sebastian Lauge](https://github.com/SebLague/Chess-Coding-Adventure?tab=readme-ov-file)

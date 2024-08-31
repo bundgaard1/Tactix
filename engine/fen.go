@@ -47,7 +47,7 @@ var PieceToFENChar = map[Color]map[PType]rune{
 
 // Should comply with FEN standard
 func FromFEN(fen string) (*Position, error) {
-	var pos Position
+	pos := NewPosition()
 
 	for i := 1; i <= 64; i++ {
 		pos.Board[i] = ANoPiece()
@@ -149,7 +149,7 @@ func FromFEN(fen string) (*Position, error) {
 
 	pos.InitPieceBitboards()
 
-	return &pos, nil
+	return pos, nil
 }
 
 // Should comply with FEN standard
