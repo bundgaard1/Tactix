@@ -84,10 +84,6 @@ func (ob *OpeningBook) GetBookMove(pos *Position) Move {
 		}
 	}
 
-	for i, child := range curr.children {
-		fmt.Printf("%d: %s\n", i, child.uciMove)
-	}
-
 	mIdx := rand.Int() % (len(curr.children))
 	m, err := ParseUCIMove(pos, curr.children[mIdx].uciMove)
 	if err != nil {

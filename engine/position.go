@@ -50,7 +50,7 @@ type Position struct {
 	Stalemate bool
 
 	// Piece Bitboards
-	// in White pieces (P, N, B, R, Q, K)
+	// 0-5 White pieces (P, N, B, R, Q, K)
 	// 6-11 Black pieces (P, N, B, R, Q, K)
 	pieceBitboards [2][6]Bitboard
 }

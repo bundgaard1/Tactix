@@ -69,7 +69,7 @@ func ParseUCIMove(pos *Position, uciMove string) (Move, error) {
 	move.To = Square((to[1]-'0'-1)*8 + toFile)
 
 	if len(uciMove) == 5 {
-		switch uciMove[5] {
+		switch uciMove[4] {
 		case 'q':
 			move.Flag = PromotionToQueen
 		case 'r':

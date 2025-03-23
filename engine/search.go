@@ -5,66 +5,88 @@ import (
 )
 
 const (
-	SearchDepth = 6
+	SearchDepth = 8
 )
 
 type Search struct {
-	pos        Position
-	SearchOver bool
-	BestMove   Move
+	pos      *Position
+	BestMove Move
 
 	nodesSearched int
 
-	timer Timer
+	Timer Timer
+
+	Debug bool
 }
 
-func NewSearch(pos *Position) (search Search) {
-	return Search{
-		pos:           *pos,
-		SearchOver:    false,
+func NewSearch() *Search {
+	return &Search{
+		pos:           NewPosition(),
 		BestMove:      NilMove(),
 		nodesSearched: 0,
-		timer:         NewTimer(),
+		Timer:         NewTimer(),
+		Debug:         true,
 	}
 }
 
-func (search *Search) Search() {
+func (s *Search) Stop() {
+	s.Timer.Stop = true
+	Log("Search stopping")
+}
+
+func (s *Search) Reset() {
+	s.Timer.Stop = false
+}
+
+func (s *Search) SetPosition(pos *Position) {
+	s.pos = pos
+}
+
+func (s *Search) Search() {
 	bestMove, bestScore := Move{}, NegativeInfinity
 
-	for depth := 1; depth <= SearchDepth; depth++ {
-		move, score := search.rootAlphaBeta(depth)
+	s.Timer.Start()
+	Log(fmt.Sprintf("Max Search Time: %v", s.Timer.TimeForMove))
 
-		if search.SearchOver {
-			search.BestMove = bestMove
+	for depth := 1; depth <= SearchDepth; depth++ {
+
+		move, score := s.rootAlphaBeta(depth)
+
+		s.Timer.Check()
+		if s.Timer.Stop {
+			s.BestMove = bestMove
+			Log("Search stopped")
+			return
 		}
 
 		if score > bestScore {
 			bestMove, bestScore = move, score
 		}
 
-		search.searchInfo(depth, bestScore, bestMove)
+		if s.Debug {
+			s.searchInfo(depth, bestScore, bestMove)
+		}
 	}
 
-	search.BestMove = bestMove
+	s.BestMove = bestMove
 }
 
-func (search *Search) rootAlphaBeta(depth int) (Move, int) {
+func (s *Search) rootAlphaBeta(depth int) (Move, int) {
 	alpha, beta := NegativeInfinity, PositiveInfinity
-	search.nodesSearched = 0
+	s.nodesSearched = 0
 
 	bestMove := Move{}
 
-	moves := LegalMoves(&search.pos)
-	search.orderMoves(&moves)
+	moves := LegalMoves(s.pos)
+	s.orderMoves(&moves)
 
 	for i := 0; i < len(moves); i++ {
 		move := moves[i]
 
-		search.pos.MakeMove(move)
-		score := -search.alphaBeta(-beta, -alpha, depth-1)
-		search.pos.UndoMove(move)
+		s.pos.MakeMove(move)
+		score := -s.alphaBeta(-beta, -alpha, depth-1)
+		s.pos.UndoMove(move)
 
-		// fmt.Println(" Move: ", move.UCIString(), " Score: ", score)
 		if score == PositiveInfinity {
 			return move, beta
 		}
@@ -78,23 +100,29 @@ func (search *Search) rootAlphaBeta(depth int) (Move, int) {
 	return bestMove, alpha
 }
 
-func (search *Search) alphaBeta(alpha, beta, depthLeft int) int {
-	search.nodesSearched++
+func (s *Search) alphaBeta(alpha, beta, depthLeft int) int {
+	s.nodesSearched++
+
+	// Premature stop, if the time is up
+	s.Timer.Check()
+	if s.Timer.Stop {
+		return NegativeInfinity
+	}
 
 	if depthLeft == 0 {
-		return search.quiesce(alpha, beta)
+		return s.quiesce(alpha, beta)
 	}
 	bestValue := NegativeInfinity
 
-	moves := LegalMoves(&search.pos)
-	search.orderMoves(&moves)
+	moves := LegalMoves(s.pos)
+	s.orderMoves(&moves)
 
 	for i := 0; i < len(moves); i++ {
 		move := moves[i]
 
-		search.pos.MakeMove(move)
-		score := -search.alphaBeta(-beta, -alpha, depthLeft-1)
-		search.pos.UndoMove(move)
+		s.pos.MakeMove(move)
+		score := -s.alphaBeta(-beta, -alpha, depthLeft-1)
+		s.pos.UndoMove(move)
 
 		if score > bestValue {
 			bestValue = score
@@ -109,9 +137,9 @@ func (search *Search) alphaBeta(alpha, beta, depthLeft int) int {
 	return bestValue
 }
 
-func (search *Search) quiesce(alpha, beta int) int {
-	search.nodesSearched++
-	stand_pat := Evaluate(&search.pos)
+func (s *Search) quiesce(alpha, beta int) int {
+	s.nodesSearched++
+	stand_pat := Evaluate(s.pos)
 
 	if stand_pat >= beta {
 		return beta
@@ -120,17 +148,17 @@ func (search *Search) quiesce(alpha, beta int) int {
 		alpha = stand_pat
 	}
 
-	moves := LegalMoves(&search.pos)
-	search.orderMoves(&moves)
+	moves := LegalMoves(s.pos)
+	s.orderMoves(&moves)
 
 	for i := 0; i < len(moves); i++ {
 		move := moves[i]
-		if !search.pos.isCapture(move) {
+		if !s.pos.isCapture(move) {
 			continue
 		}
-		search.pos.MakeMove(move)
-		score := -search.quiesce(-beta, -alpha)
-		search.pos.UndoMove(move)
+		s.pos.MakeMove(move)
+		score := -s.quiesce(-beta, -alpha)
+		s.pos.UndoMove(move)
 
 		if score >= beta {
 			return beta
@@ -154,7 +182,7 @@ func (search *Search) orderMoves(moves *MoveList) {
 	var scores []int
 
 	for i := 0; i < len(*moves); i++ {
-		scores = append(scores, scoreMove((*moves)[i], &search.pos))
+		scores = append(scores, scoreMove((*moves)[i], search.pos))
 	}
 
 	// Sort Moves based on scores
@@ -192,10 +220,12 @@ func scoreMove(move Move, pos *Position) int {
 }
 
 func (search *Search) searchInfo(depth int, bestScore int, bestMove Move) {
-	fmt.Printf(
-		"info depth %d score %d nodes %d bestmove %s\n",
+	message := fmt.Sprintf(
+		"info depth %d score cp %d nodes %d bestmove %s",
 		depth, bestScore,
 		search.nodesSearched,
 		bestMove.UCIString(),
 	)
+	fmt.Println(message)
+	Log(message)
 }

@@ -33,24 +33,23 @@ const (
 `
 )
 
-type Communication struct {
-	pos    *Position
+type CommChannel struct {
 	reader *bufio.Reader
 	uci    *UCI
 }
 
-func NewComms() *Communication {
-	com := Communication{
-		pos:    FromStandardStartingPosition(),
+func NewComms() *CommChannel {
+	com := CommChannel{
 		reader: bufio.NewReader(os.Stdin),
 	}
-	com.uci = NewUCI(com.pos)
+	com.uci = NewUCI()
 	return &com
 }
 
 func RunCommLoop() {
 	fmt.Println(Banner)
 
+	InitLogging()
 	comms := NewComms()
 
 	for {
@@ -63,12 +62,12 @@ func RunCommLoop() {
 		if message == "quit" {
 			break
 		}
-
+		Log("Received command: " + message)
 		comms.handleCommand(message)
 	}
 }
 
-func (comm *Communication) handleCommand(message string) {
+func (comm *CommChannel) handleCommand(message string) {
 	fields := strings.Fields(message)
 	if len(fields) == 0 {
 		return
@@ -80,15 +79,15 @@ func (comm *Communication) handleCommand(message string) {
 		comm.uci.handleUCICommand(message)
 	// Custom commands
 	case "d", "print":
-		fmt.Println(comm.pos.String())
+		fmt.Println(comm.uci.pos.String())
 	case "eval":
-		fmt.Println(Evaluate(comm.pos))
+		fmt.Println(Evaluate(comm.uci.pos))
 	case "move", "m":
 		comm.moveCommand(message)
 	case "perft":
 		comm.perftCommand(message)
 	case "moves":
-		moves := LegalMoves(comm.pos)
+		moves := LegalMoves(comm.uci.pos)
 		fmt.Println(moves.String())
 	case "help", "h":
 		comm.helpCommand()
@@ -99,14 +98,14 @@ func (comm *Communication) handleCommand(message string) {
 	}
 }
 
-func (comm *Communication) moveCommand(message string) {
+func (comm *CommChannel) moveCommand(message string) {
 	msgParts := strings.Fields(message)
 	if len(msgParts) < 2 {
 		fmt.Println("Invalid move command")
 		return
 	}
 
-	move, err := ParseUCIMove(comm.pos, msgParts[1])
+	move, err := ParseUCIMove(comm.uci.pos, msgParts[1])
 	if err != nil {
 		fmt.Println("Invalid move")
 		return
@@ -114,15 +113,15 @@ func (comm *Communication) moveCommand(message string) {
 
 	fmt.Println(move.String())
 
-	if !IsMoveValid(comm.pos, move) {
+	if !IsMoveValid(comm.uci.pos, move) {
 		fmt.Println("Move not legal")
 		return
 	}
 
-	comm.pos.MakeMove(move)
+	comm.uci.pos.MakeMove(move)
 }
 
-func (comm *Communication) perftCommand(message string) {
+func (comm *CommChannel) perftCommand(message string) {
 	msgParts := strings.Fields(message)
 
 	depth, err := strconv.Atoi(msgParts[1])
@@ -131,12 +130,12 @@ func (comm *Communication) perftCommand(message string) {
 		return
 	}
 
-	summary, nodes := PerftDivided(comm.pos, depth)
+	summary, nodes := PerftDivided(comm.uci.pos, depth)
 
 	fmt.Println(summary)
 	fmt.Println("Total nodes: ", nodes)
 }
 
-func (comm *Communication) helpCommand() {
+func (comm *CommChannel) helpCommand() {
 	fmt.Print(HelpMessage)
 }
