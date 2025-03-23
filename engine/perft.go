@@ -112,14 +112,14 @@ func PerftWithBenchmark() {
 
 		fmt.Print("Test ", i, ": ", nodesExplored, " ")
 		if nodesExplored == perftTest.ExpectedNodes {
-			fmt.Print("check \n")
+			fmt.Print("✅ \n")
 		} else {
-			fmt.Print("wrong (expected ", perftTest.ExpectedNodes, ")\n")
+			fmt.Print("❌ (expected ", perftTest.ExpectedNodes, ")\n")
 		}
 	}
 	duration := time.Since(startTime)
 	fmt.Printf(("\n"))
 	fmt.Printf("Nodes : %d \n", totalNodes)
 	fmt.Printf("Time  : %v \n", duration)
-	fmt.Printf("Speed : %.2f MN/s \n", float64(totalNodes)/duration.Seconds()/1_000_000)
+	fmt.Printf("Speed : %.2f kN/s \n", float64(totalNodes)/duration.Seconds()/1_000)
 }

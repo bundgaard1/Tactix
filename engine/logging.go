@@ -6,7 +6,8 @@ import (
 )
 
 var Logging struct {
-	file *os.File
+	initialized bool
+	file        *os.File
 }
 
 func InitLogging() {
@@ -19,10 +20,14 @@ func InitLogging() {
 		panic(err)
 	}
 	Logging.file = file
+	Logging.initialized = true
 
 }
 
 func Log(message string) {
+	if !Logging.initialized {
+		return
+	}
 	now := time.Now().Format("15:04:05.000")
 	Logging.file.WriteString("[" + now + "] " + message + "\n")
 }

@@ -14,7 +14,7 @@ const (
 	NegativeInfinity = -PositiveInfinity
 )
 
-// positive for white, negative for black, as it should be
+// positive for white, negative for black
 func Evaluate(pos *Position) int {
 	eval := 0
 

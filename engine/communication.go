@@ -91,10 +91,11 @@ func (comm *CommChannel) handleCommand(message string) {
 		fmt.Println(moves.String())
 	case "help", "h":
 		comm.helpCommand()
+	case "bench":
+		PerftWithBenchmark()
 	default:
-		// If the command is unknown, it should try to parse the remaning part as a uci command,
-		// not just skip the rest
 		fmt.Println("Unknown command : " + fields[0])
+		comm.handleCommand(strings.Join(fields[1:], " "))
 	}
 }
 
@@ -121,19 +122,25 @@ func (comm *CommChannel) moveCommand(message string) {
 	comm.uci.pos.MakeMove(move)
 }
 
+var PerftCommandHelp = "perft <depth>"
+
 func (comm *CommChannel) perftCommand(message string) {
 	msgParts := strings.Fields(message)
+	if len(msgParts) < 2 {
+		fmt.Println("No depth Provided:", PerftCommandHelp)
+		return
+	}
 
 	depth, err := strconv.Atoi(msgParts[1])
 	if err != nil {
-		fmt.Println("Invalid depth")
+		fmt.Println("Invalid Depth:", PerftCommandHelp)
 		return
 	}
 
 	summary, nodes := PerftDivided(comm.uci.pos, depth)
 
 	fmt.Println(summary)
-	fmt.Println("Total nodes: ", nodes)
+	fmt.Println("Total nodes:", nodes)
 }
 
 func (comm *CommChannel) helpCommand() {
