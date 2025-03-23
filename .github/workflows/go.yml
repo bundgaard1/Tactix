@@ -24,4 +24,4 @@ jobs:
         run: go build Tactix/main.go
 
       - name: Test
-        run: go test ./tests
+        run: go test ./engine
