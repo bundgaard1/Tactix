@@ -24,6 +24,16 @@ func NewTimer() (tm Timer) {
 	return tm
 }
 
+func (tm *Timer) NoTimeControl() bool {
+	return tm.TimeLeft == InfiniteTime && tm.MoveTime == NoValue
+}
+
+func (tm *Timer) SetTimeForMove(timeForMove int64) {
+	tm.stopTime = time.Now().Add(time.Duration(timeForMove) * time.Millisecond)
+	tm.TimeForMove = timeForMove
+
+}
+
 func (tm *Timer) SetTimeControl(timeLeft, increment, movetime, movesToGo int64, maxDepth uint8) {
 	tm.TimeLeft = timeLeft
 	tm.Increment = increment
@@ -36,7 +46,8 @@ func (tm *Timer) Start() {
 	tm.Stop = false
 
 	if tm.MoveTime != NoValue {
-		tm.stopTime = time.Now().Add(time.Duration(tm.MoveTime) * time.Millisecond)
+		var buffer int64 = 100
+		tm.stopTime = time.Now().Add(time.Duration(tm.MoveTime-buffer) * time.Millisecond)
 		return
 	}
 
@@ -59,6 +70,9 @@ func (tm *Timer) Start() {
 }
 
 func (tm *Timer) Check() {
+	if tm.MoveTime == NoValue {
+		return
+	}
 	if time.Now().After(tm.stopTime) {
 		tm.Stop = true
 	}

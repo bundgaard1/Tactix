@@ -123,3 +123,5 @@ func PerftWithBenchmark() {
 	fmt.Printf("Time  : %v \n", duration)
 	fmt.Printf("Speed : %.2f kN/s \n", float64(totalNodes)/duration.Seconds()/1_000)
 }
+
+

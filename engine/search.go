@@ -17,6 +17,9 @@ type Search struct {
 	Timer Timer
 
 	Debug bool
+
+	// Principal Variation
+	PV MoveList
 }
 
 func NewSearch() *Search {
@@ -26,6 +29,7 @@ func NewSearch() *Search {
 		nodesSearched: 0,
 		Timer:         NewTimer(),
 		Debug:         true,
+		PV:            *NewMoveList(),
 	}
 }
 
@@ -42,12 +46,17 @@ func (s *Search) SetPosition(pos *Position) {
 	s.pos = pos
 }
 
+func (s *Search) NodesSearched() int {
+	return s.nodesSearched
+}
+
 func (s *Search) Search() {
 	bestMove, bestScore := Move{}, NegativeInfinity
 
 	s.Timer.Start()
 	Log(fmt.Sprintf("Max Search Time: %v", s.Timer.TimeForMove))
 
+	// Iterative deepening
 	for depth := 1; depth <= SearchDepth; depth++ {
 
 		move, score := s.rootAlphaBeta(depth)
@@ -56,12 +65,11 @@ func (s *Search) Search() {
 		if s.Timer.Stop {
 			s.BestMove = bestMove
 			Log("Search stopped")
-			return
+			break
 		}
 
-		if score > bestScore {
-			bestMove, bestScore = move, score
-		}
+		// Always update, since we have more info
+		bestMove, bestScore = move, score
 
 		if s.Debug {
 			s.searchInfo(depth, bestScore, bestMove)
@@ -69,6 +77,17 @@ func (s *Search) Search() {
 	}
 
 	s.BestMove = bestMove
+}
+
+func (s *Search) SearchDepth(depth int) Move {
+	move, _ := s.rootAlphaBeta(depth)
+
+	s.BestMove = move
+	return move
+}
+
+func (s *Search) SearchResults() (Move, int) {
+	return s.BestMove, s.nodesSearched
 }
 
 func (s *Search) rootAlphaBeta(depth int) (Move, int) {
@@ -84,15 +103,15 @@ func (s *Search) rootAlphaBeta(depth int) (Move, int) {
 		move := moves[i]
 
 		s.pos.MakeMove(move)
-		score := -s.alphaBeta(-beta, -alpha, depth-1)
+		eval := -s.alphaBeta(-beta, -alpha, depth-1)
 		s.pos.UndoMove(move)
 
-		if score == PositiveInfinity {
-			return move, beta
+		if eval == PositiveInfinity {
+			return move, eval
 		}
 
-		if score > alpha {
-			alpha = score
+		if eval > alpha {
+			alpha = eval
 			bestMove = move
 		}
 	}
@@ -106,46 +125,48 @@ func (s *Search) alphaBeta(alpha, beta, depthLeft int) int {
 	// Premature stop, if the time is up
 	s.Timer.Check()
 	if s.Timer.Stop {
-		return NegativeInfinity
+		return 0
 	}
 
 	if depthLeft == 0 {
-		return s.quiesce(alpha, beta)
+		return s.quiescence(alpha, beta, 0)
 	}
-	bestValue := NegativeInfinity
 
 	moves := LegalMoves(s.pos)
 	s.orderMoves(&moves)
 
 	for i := 0; i < len(moves); i++ {
-		move := moves[i]
+		s.pos.MakeMove(moves[i])
+		eval := -s.alphaBeta(-beta, -alpha, depthLeft-1)
+		s.pos.UndoMove(moves[i])
 
-		s.pos.MakeMove(move)
-		score := -s.alphaBeta(-beta, -alpha, depthLeft-1)
-		s.pos.UndoMove(move)
-
-		if score > bestValue {
-			bestValue = score
-			if score > alpha {
-				alpha = score
-			}
+		// Move is good, so opponent wont allow this to be reached
+		if eval >= beta {
+			return beta
 		}
-		if score >= beta {
-			return bestValue
+		if eval > alpha {
+			alpha = eval
 		}
 	}
-	return bestValue
+	return alpha
 }
 
-func (s *Search) quiesce(alpha, beta int) int {
-	s.nodesSearched++
-	stand_pat := Evaluate(s.pos)
+const maxQuiescenceDepth = 5
 
-	if stand_pat >= beta {
+// Search until a quite position is reached
+func (s *Search) quiescence(alpha, beta int, depth int) int {
+	s.nodesSearched++
+	eval := EvalToMoveRelative(s.pos)
+
+	if depth > maxQuiescenceDepth {
+		return eval
+	}
+
+	if eval >= beta {
 		return beta
 	}
-	if alpha < stand_pat {
-		alpha = stand_pat
+	if eval > alpha {
+		alpha = eval
 	}
 
 	moves := LegalMoves(s.pos)
@@ -157,7 +178,7 @@ func (s *Search) quiesce(alpha, beta int) int {
 			continue
 		}
 		s.pos.MakeMove(move)
-		score := -s.quiesce(-beta, -alpha)
+		score := -s.quiescence(-beta, -alpha, depth+1)
 		s.pos.UndoMove(move)
 
 		if score >= beta {
@@ -213,13 +234,16 @@ func scoreMove(move Move, pos *Position) int {
 	}
 
 	if move.Flag.IsPromotion() {
-		scoreGuess += PieceValue(Queen)
+		scoreGuess += PieceValue(Queen) * 2
 	}
 
 	return scoreGuess
 }
 
 func (search *Search) searchInfo(depth int, bestScore int, bestMove Move) {
+
+	bestScore = bestScore * who2move(search.pos.ColorToMove)
+
 	message := fmt.Sprintf(
 		"info depth %d score cp %d nodes %d bestmove %s",
 		depth, bestScore,

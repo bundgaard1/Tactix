@@ -2,19 +2,29 @@ package engine
 
 const (
 	// Piece Values
-	PawnValue   = 100
-	KnightValue = 300
-	BishopValue = 320
-	RookValue   = 500
-	QueenValue  = 900
+	PawnValue   int = 100
+	KnightValue int = 300
+	BishopValue int = 320
+	RookValue   int = 500
+	QueenValue  int = 900
 
-	MobilityValue = 10
+	MobilityValue int = 10
 
-	PositiveInfinity = 999_999
-	NegativeInfinity = -PositiveInfinity
+	PositiveInfinity int = 999_999
+	NegativeInfinity int = -PositiveInfinity
 )
 
-// positive for white, negative for black
+// Positive for the color to move
+
+func EvalToMoveRelative(pos *Position) int {
+	eval := Evaluate(pos)
+	if pos.ColorToMove == Black {
+		eval *= -1
+	}
+	return eval
+}
+
+// The rest of the functions use White as Positive
 func Evaluate(pos *Position) int {
 	eval := 0
 

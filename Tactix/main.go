@@ -5,5 +5,6 @@ import (
 )
 
 func main() {
+	engine.SearchPerformance1()
 	engine.RunCommLoop()
 }

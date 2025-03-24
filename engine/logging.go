@@ -11,7 +11,8 @@ var Logging struct {
 }
 
 func InitLogging() {
-	filename := time.Now().Format("2006-01-02-15-04-05")
+	// filename := time.Now().Format("2006-01-02-15-04-05")
+	filename := "haha"
 	if _, err := os.Stat("log"); os.IsNotExist(err) {
 		os.Mkdir("log", 0777)
 	}
